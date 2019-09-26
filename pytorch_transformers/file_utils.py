@@ -241,6 +241,7 @@ def get_from_cache(url, cache_dir=None, force_download=False, proxies=None):
                 etag = None
             else:
                 etag = response.headers.get("ETag")
+            response.raise_for_status()  # raises for 403, 404
         except EnvironmentError:
             etag = None
 
