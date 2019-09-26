@@ -206,6 +206,7 @@ def s3_get(url, temp_file, proxies=None):
 
 def http_get(url, temp_file, proxies=None):
     req = requests.get(url, stream=True, proxies=proxies)
+    req.raise_for_status()
     content_length = req.headers.get('Content-Length')
     total = int(content_length) if content_length is not None else None
     progress = tqdm(unit="B", total=total)
@@ -241,7 +242,6 @@ def get_from_cache(url, cache_dir=None, force_download=False, proxies=None):
                 etag = None
             else:
                 etag = response.headers.get("ETag")
-            response.raise_for_status()  # raises for 403, 404
         except EnvironmentError:
             etag = None
 
