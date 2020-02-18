@@ -97,7 +97,7 @@ def _prepare_bart_inputs(
         decoder_input_ids = shift_tokens_right(input_ids, pad_token_id)
     if decoder_attn_mask is None:
         bsz, tgt_len = decoder_input_ids.size()[:2]
-        decoder_padding_mask = make_padding_mask(input_ids, pad_token_id)
+        decoder_padding_mask = make_padding_mask(decoder_input_ids, pad_token_id)
         if need_causal_mask:
             causal_lm_mask = torch.triu(fill_with_neg_inf(torch.zeros(tgt_len, tgt_len)), 1)
         else:
