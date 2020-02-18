@@ -81,7 +81,7 @@ BART_INPUTS_DOCSTRING = r"""
     read `prepare_bart_inputs` for more information on the default behavior.
 
 """
-
+LARGE_NEGATIVE = -1e4
 
 def _prepare_bart_inputs(
     config, input_ids, attention_mask=None, decoder_input_ids=None, decoder_attn_mask=None,
@@ -110,7 +110,7 @@ def _prepare_bart_inputs(
     return attention_mask, decoder_input_ids, decoder_attn_mask
 
 
-def prepare_barts_input_dict(
+def prepare_bart_inputs_dict(
     config, input_ids, attention_mask=None, decoder_input_ids=None, decoder_attn_mask=None,
 ):
     """Prepare masks that ignore padding tokens for both encoder and decoder and a causal lm mask for the decoder if
