@@ -252,11 +252,11 @@ class BartHeadTests(unittest.TestCase):
         input_ids_w_padding = torch.Tensor([example_no_pad, example_b]).long()  # has padding
 
         for ids in [input_ids_w_padding, torch.Tensor([example_no_pad]).long()]:
-            legacy_attention_mask = 1 - ids.eq(1).int()
             inputs_dict = prepare_bart_inputs_dict(BartConfig(), ids)
             self.assertEqual(inputs_dict["decoder_attention_mask"].min().item(), LARGE_NEGATIVE)
-            new_inputs_dict = prepare_bart_inputs_dict(BartConfig(), ids, attention_mask=legacy_attention_mask)
-            _assert_tensors_equal(inputs_dict["attention_mask"], new_inputs_dict["attention_mask"])
+            legacy_attention_mask = 1 - ids.eq(1).int()
+            inputs_with_passed_attn = prepare_bart_inputs_dict(BartConfig(), ids, attention_mask=legacy_attention_mask)
+            _assert_tensors_equal(inputs_dict["attention_mask"], inputs_with_passed_attn["attention_mask"])
 
 
 def _assert_tensors_equal(a, b, atol=1e-12):
