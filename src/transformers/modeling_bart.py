@@ -96,7 +96,7 @@ def _prepare_bart_inputs(
     if decoder_input_ids is None:
         decoder_input_ids = shift_tokens_right(input_ids, pad_token_id)
     if decoder_attn_mask is None:
-        bsz, tgt_len = input_ids.size()[:2]
+        bsz, tgt_len = decoder_input_ids.size()[:2]
         decoder_padding_mask = make_padding_mask(input_ids, pad_token_id)
         tgt_len = input_ids.shape[1]
         if need_causal_mask:
