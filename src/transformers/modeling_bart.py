@@ -1009,6 +1009,11 @@ class BartForMaskedLM(PretrainedBartModel):
                 The sequence used as a prompt for the generation. If `None` the method initializes
                 it as an empty `torch.LongTensor` of shape `(1,)`.
 
+            attention_mask (:obj:`torch.Tensor` of shape :obj:`(batch_size, sequence_length)`, `optional`, defaults to :obj:`None`):
+                Mask to avoid performing attention on padding token indices in input_ids.
+                Mask values selected in ``[0, 1]``:
+                ``1`` for tokens that are NOT MASKED, ``0`` for MASKED tokens.
+
             max_length: (`optional`) int
                 The max length of the sequence to be generated. Does not include tokens in input_ids.
 
@@ -1025,6 +1030,9 @@ class BartForMaskedLM(PretrainedBartModel):
                 The number of independently computed returned sequences for each element in the batch. Default to 1.
 
             min_len: (`optional`) int
+
+            no_repeat_ngram_size:  (`optional`) int
+                ban ngrams of this length from being repeated in the generated text
 
         Returns:
             `torch.LongTensor` of shape `(batch_size * num_return_sequences, sequence_length)`
