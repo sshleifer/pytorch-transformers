@@ -109,9 +109,11 @@ class MultiHeadAttention(torch.nn.Module):
         k = self.split_into_heads(k, batch_size)
         v = self.split_into_heads(v, batch_size)
         if layer_past is not None:
+
             past_key, past_value = layer_past[0], layer_past[1]
             k = torch.cat((past_key, k), dim=-2)
             v = torch.cat((past_value, v), dim=-2)
+
         present = torch.stack((k, v))
 
         output = scaled_dot_product_attention(q, k, v, mask, attention_mask, head_mask)
@@ -145,6 +147,7 @@ class EncoderLayer(torch.nn.Module):
 
     def forward(self, x, mask, layer_past=None, attention_mask=None, head_mask=None):
         normed = self.layernorm1(x)
+
         attn_outputs = self.multi_head_attention(
             normed, normed, normed, mask, layer_past=layer_past, attention_mask=attention_mask, head_mask=head_mask
         )
@@ -407,6 +410,10 @@ class CTRLModel(CTRLPreTrainedModel):
         presents = ()
         all_hidden_states = ()
         all_attentions = []
+        if past[0] is not None:
+            print(f'cached key shape: {past[0][0].shape}')
+            print(f'inputs_embeds. shape: {inputs_embeds.shape}')
+
         for i, (h, layer_past) in enumerate(zip(self.h, past)):
             if self.output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states.view(*output_shape),)

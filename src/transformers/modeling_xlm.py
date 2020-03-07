@@ -158,6 +158,7 @@ class MultiHeadAttention(nn.Module):
             if self.layer_id in cache:
                 if kv is None:
                     k_, v_ = cache[self.layer_id]
+
                     k = torch.cat([k_, k], dim=2)  # (bs, n_heads, klen, dim_per_head)
                     v = torch.cat([v_, v], dim=2)  # (bs, n_heads, klen, dim_per_head)
                 else:

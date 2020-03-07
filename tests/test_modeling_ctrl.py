@@ -162,9 +162,25 @@ class CTRLModelTest(ModelTesterMixin, unittest.TestCase):
             self.parent.assertEqual(len(result["presents"]), config.n_layer)
 
         def create_and_check_lm_head_model(self, config, input_ids, input_mask, head_mask, token_type_ids, *args):
+            import time
+
+            config.output_past = True
             model = CTRLLMHeadModel(config)
             model.to(torch_device)
             model.eval()
+            t0 = time.time()
+            output_ids  = model.generate(input_ids)
+            t_total = time.time() - t0
+            config.output_past = False
+            t0 = time.time()
+            output_ids = model.generate(input_ids)
+            t_total_no_cache = time.time() - t0
+            import ipdb; ipdb.set_trace()
+            model = CTRLLMHeadModel(config)
+            model.to(torch_device)
+            model.eval()
+            output_ids = model.generate(input_ids)
+            import ipdb; ipdb.set_trace()
 
             loss, lm_logits, _ = model(input_ids, token_type_ids=token_type_ids, labels=input_ids)
 
@@ -218,7 +234,7 @@ class CTRLModelTest(ModelTesterMixin, unittest.TestCase):
 class CTRLModelLanguageGenerationTest(unittest.TestCase):
     @slow
     def test_lm_generate_ctrl(self):
-        model = CTRLLMHeadModel.from_pretrained("ctrl")
+        model = CTRLLMHeadModel.from_pretrained("ctrl", output_past=True)
         input_ids = torch.Tensor([[11859, 586, 20984, 8]]).long()  # Legal My neighbor is
         expected_output_ids = [
             11859,

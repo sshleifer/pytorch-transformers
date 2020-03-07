@@ -498,7 +498,7 @@ class BartDecoder(nn.Module):
             )
 
             if self.output_past:
-                next_decoder_cache.append(layer_past.copy())
+                next_decoder_cache.append(layer_past)
             if self.output_hidden_states:
                 all_hidden_states += (x,)
             if self.output_attentions:
@@ -707,6 +707,7 @@ class SelfAttention(nn.Module):
         # During incremental decoding, as the padding token enters and
         # leaves the frame, there will be a time when prev or current is None
         elif prev_key_padding_mask is not None:
+            # The case we never hit!
             filler = torch.zeros(batch_size, src_len - prev_key_padding_mask.size(1))
             if prev_key_padding_mask.is_cuda:
                 filler = filler.to(prev_key_padding_mask.device)
@@ -854,6 +855,14 @@ class BartModel(PretrainedBartModel):
     def get_output_embeddings(self):
         return _make_linear_from_emb(self.shared)  # make it on the fly
 
+    def disable_caching(self):
+        self.decoder.output_past = False
+
+    def enable_caching(self):
+        self.decoder.output_past = True
+
+
+
 
 @add_start_docstrings(
     "The BART Model with a language modeling head. Can be used for summarization.", BART_START_DOCSTRING,
@@ -966,8 +975,6 @@ class BartForConditionalGeneration(PretrainedBartModel):
             layer_past_new = {
                 attn_key: reorder_attn_buffer(attn_cache, beam_idx) for attn_key, attn_cache in layer_past.items()
             }
-            # reordered_layer_past = [layer_past[:, i].unsqueeze(1).clone().detach() for i in beam_idx]
-            # reordered_layer_past = torch.cat(reordered_layer_past, dim=1)
             reordered_past.append(layer_past_new)
         new_enc_out = enc_out if enc_out is None else enc_out.index_select(1, beam_idx)
         new_enc_mask = enc_mask if enc_mask is None else enc_mask.index_select(0, beam_idx)
@@ -1098,9 +1105,8 @@ class BartForConditionalGeneration(PretrainedBartModel):
 
         self.model.decoder.generation_mode = True  # tells decoder not to use causal mask
         for step in range(max_length + 1):
-            decoder_input_ids = prev_output_tokens.clone()
             model_inputs = self.prepare_inputs_for_generation(
-                input_ids, decoder_cache, decoder_input_ids, attention_mask,
+                input_ids, decoder_cache, prev_output_tokens, attention_mask,
             )
             outputs = self(**model_inputs)
             lprobs = F.log_softmax(outputs[0][:, -1, :], dim=-1)
@@ -1116,7 +1122,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
             elif step == max_length:  # FORCE EOS to be chosen
                 lprobs[:, :eos_token_id] = -math.inf
                 lprobs[:, eos_token_id + 1 :] = -math.inf
-            assert self._do_output_past(outputs)
+            #assert self._do_output_past(outputs)
             decoder_cache = outputs[1]
             if repetition_penalty != 1.0:
                 self.enforce_repetition_penalty_(lprobs, batch_size, num_beams, prev_output_tokens, repetition_penalty)

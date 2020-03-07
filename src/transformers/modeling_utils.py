@@ -582,6 +582,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
         return model
 
     def prepare_inputs_for_generation(self, input_ids, **kwargs):
+        print(f'input_ids: {input_ids.shape}')
         return {"input_ids": input_ids}
 
     def _do_output_past(self, outputs):
