@@ -3,17 +3,17 @@ language: multilingual
 thumbnail:
 ---
 
-# BERT (base-multilingual-cased) fine-tuned on XQuAD
+# BERT (base-multilingual-uncased) fine-tuned on XQuAD
 
 This model was created by [Google](https://github.com/google-research/bert/blob/master/multilingual.md) and fine-tuned on [XQuAD](https://github.com/deepmind/xquad) for multilingual (`11 different languages`) **Q&A** downstream task.
 
-## Details of the language model('bert-base-multilingual-cased')
+## Details of the language model('bert-base-multilingual-uncased')
 
 [Language model](https://github.com/google-research/bert/blob/master/multilingual.md)
 
 | Languages | Heads | Layers | Hidden | Params |
 | --------- | ----- | ------ | ------ | ------ |
-| 104       | 12    | 12     | 768    | 100 M  |
+| 102       | 12    | 12     | 768    | 100 M  |
 
 ## Details of the downstream task (multilingual Q&A) - Dataset
 
@@ -65,7 +65,7 @@ Citation:
 
 </details>
 
-I used `Data augmentation techniques` and splited the dataset in order to have a train and test set. The test set was created in a way that contains the same number of samples for each language. Finally, I got:
+I used `Data augmentation techniques` to obtain more samples and splited the dataset in order to have a train and test set. The test set was created in a way that contains the same number of samples for each language. Finally, I got:
 
 | Dataset     | # samples |
 | ----------- | --------- |
@@ -81,10 +81,15 @@ The script for fine tuning can be found [here](https://github.com/huggingface/tr
 
 | Metric    | # Value     |
 | --------- | ----------- |
-| **Exact** | **91.43** |
-| **F1**    | **94.14** |
+| **Exact** | **93.03** |
+| **F1**    | **94.62** |
 
+## Comparison:
 
+| Model    | Exact     | F1 score |
+| --------- | ----------- | ------- |
+| [bert-multi-cased-finetuned-xquadv1](https://huggingface.co/mrm8488/bert-multi-cased-finetuned-xquadv1) | 91.43 | 94.14 |
+|bert-multi-uncased-finetuned-xquadv1 | **93.03** | **94.62**
 
 ## Model in action
 
@@ -93,12 +98,10 @@ Fast usage with **pipelines**:
 ```python
 from transformers import pipeline
 
-from transformers import pipeline
-
 qa_pipeline = pipeline(
     "question-answering",
-    model="mrm8488/bert-multi-cased-finetuned-xquadv1",
-    tokenizer="mrm8488/bert-multi-cased-finetuned-xquadv1"
+    model="mrm8488/bert-multi-uncased-finetuned-xquadv1",
+    tokenizer="bert-multi-uncased-finetuned-xquadv1"
 )
 
 
@@ -130,7 +133,7 @@ qa_pipeline({
 
 Try it on a Colab:
 
-<a href="https://colab.research.google.com/github/mrm8488/shared_colab_notebooks/blob/master/Try_mrm8488_xquad_finetuned_model.ipynb" target="_parent"><img src="https://camo.githubusercontent.com/52feade06f2fecbf006889a904d221e6a730c194/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667" alt="Open In Colab" data-canonical-src="https://colab.research.google.com/assets/colab-badge.svg"></a>
+<a href="https://colab.research.google.com/github/mrm8488/shared_colab_notebooks/blob/master/Try_mrm8488_xquad_finetuned_uncased_model.ipynb" target="_parent"><img src="https://camo.githubusercontent.com/52feade06f2fecbf006889a904d221e6a730c194/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667" alt="Open In Colab" data-canonical-src="https://colab.research.google.com/assets/colab-badge.svg"></a>
 
 
 
