@@ -29,7 +29,7 @@ from .modeling_utils import BeamHypotheses, PreTrainedModel, create_position_ids
 
 logger = logging.getLogger(__name__)
 
-
+def get_mem(): return f'reserved: {torch.cuda.memory_reserved() / 1e9:.2f}, allocated: {torch.cuda.memory_allocated()/1e9:.2f}'
 BART_PRETRAINED_MODEL_ARCHIVE_MAP = {
     "bart-large": "https://s3.amazonaws.com/models.huggingface.co/bert/facebook/bart-large/pytorch_model.bin",
     "bart-large-mnli": "https://s3.amazonaws.com/models.huggingface.co/bert/facebook/bart-large-mnli/pytorch_model.bin",
@@ -1104,12 +1104,15 @@ class BartForConditionalGeneration(PretrainedBartModel):
         done = [False for _ in range(batch_size)]  # done sentences
 
         self.model.decoder.generation_mode = True  # tells decoder not to use causal mask
+        mems = []
         for step in range(max_length + 1):
             model_inputs = self.prepare_inputs_for_generation(
                 input_ids, decoder_cache, prev_output_tokens, attention_mask,
             )
             outputs = self(**model_inputs)
             lprobs = F.log_softmax(outputs[0][:, -1, :], dim=-1)
+            mems.append(get_mem())
+
 
             lprobs[lprobs != lprobs] = -math.inf  # block nans
             lprobs[:, pad_token_id] = -math.inf
@@ -1156,8 +1159,9 @@ class BartForConditionalGeneration(PretrainedBartModel):
                 # Otherwise generate some next word choices
                 next_sent_beam = []
                 # add next words for this sentence
+
                 for i, (idx, score) in enumerate(zip(next_words[batch_idx], next_scores[batch_idx])):
-                    beam_id = idx // vocab_size
+                    beam_id = idx // vocab_size  # broadcast this
                     word_id = idx % vocab_size
                     assert prev_output_tokens.shape[1] == (step + 1)
                     if word_id.item() == eos_token_id:
@@ -1225,7 +1229,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
         else:
             assert (len(hypo) == max_length for hypo in best)
             decoded = torch.stack(best).type(torch.long).to(next(self.parameters()).device)
-        return decoded[:, 1:]  # get rid of starting EOS
+        return decoded[:, 1:] , mems # get rid of starting EOS
 
     @staticmethod
     def calc_banned_tokens(prev_output_tokens, num_hypos, no_repeat_ngram_size, step):
