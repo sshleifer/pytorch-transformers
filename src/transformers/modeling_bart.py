@@ -1111,7 +1111,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
             )
             outputs = self(**model_inputs)
             lprobs = F.log_softmax(outputs[0][:, -1, :], dim=-1)
-            mems.append(get_mem())
+            print(get_mem())
 
 
             lprobs[lprobs != lprobs] = -math.inf  # block nans
@@ -1229,7 +1229,8 @@ class BartForConditionalGeneration(PretrainedBartModel):
         else:
             assert (len(hypo) == max_length for hypo in best)
             decoded = torch.stack(best).type(torch.long).to(next(self.parameters()).device)
-        return decoded[:, 1:] , mems # get rid of starting EOS
+        return decoded[:, 1:]
+        # get rid of starting EOS
 
     @staticmethod
     def calc_banned_tokens(prev_output_tokens, num_hypos, no_repeat_ngram_size, step):
