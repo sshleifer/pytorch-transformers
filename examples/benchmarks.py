@@ -319,54 +319,58 @@ def create_setup_and_compute(
                     )
 
     if save_to_csv:
-        with open(csv_filename, mode="w") as csv_file, open(csv_memory_filename, mode="w") as csv_memory_file:
-            fieldnames = [
-                "model",
-                "1x8",
-                "1x64",
-                "1x128",
-                "1x256",
-                "1x512",
-                "1x1024",
-                "2x8",
-                "2x64",
-                "2x128",
-                "2x256",
-                "2x512",
-                "2x1024",
-                "4x8",
-                "4x64",
-                "4x128",
-                "4x256",
-                "4x512",
-                "4x1024",
-                "8x8",
-                "8x64",
-                "8x128",
-                "8x256",
-                "8x512",
-                "8x1024",
-            ]
+        write_to_csv(csv_filename, csv_memory_filename, model_names, results)
 
-            writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-            writer.writeheader()
-            memory_writer = csv.DictWriter(csv_memory_file, fieldnames=fieldnames)
-            memory_writer.writeheader()
 
-            for model_name in model_names:
-                model_results = {
-                    f"{bs}x{ss}": results[model_name]["results"][bs][ss]
-                    for bs in results[model_name]["results"]
-                    for ss in results[model_name]["results"][bs]
-                }
-                writer.writerow({"model": model_name, **model_results})
+def write_to_csv(csv_filename, csv_memory_filename, model_names, results):
+    with open(csv_filename, mode="w") as csv_file, open(csv_memory_filename, mode="w") as csv_memory_file:
+        fieldnames = [
+            "model",
+            "1x8",
+            "1x64",
+            "1x128",
+            "1x256",
+            "1x512",
+            "1x1024",
+            "2x8",
+            "2x64",
+            "2x128",
+            "2x256",
+            "2x512",
+            "2x1024",
+            "4x8",
+            "4x64",
+            "4x128",
+            "4x256",
+            "4x512",
+            "4x1024",
+            "8x8",
+            "8x64",
+            "8x128",
+            "8x256",
+            "8x512",
+            "8x1024",
+        ]
 
-                model_memory_results = {
-                    f"{bs}x{ss}": results[model_name]["memory"][bs][ss]
-                    for bs in results[model_name]["memory"]
-                    for ss in results[model_name]["memory"][bs]
-                }
-                memory_writer.writerow({"model": model_name, **model_memory_results})
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+        memory_writer = csv.DictWriter(csv_memory_file, fieldnames=fieldnames)
+        memory_writer.writeheader()
+
+        for model_name in model_names:
+            model_results = {
+                f"{bs}x{ss}": results[model_name]["results"][bs][ss]
+                for bs in results[model_name]["results"]
+                for ss in results[model_name]["results"][bs]
+            }
+            writer.writerow({"model": model_name, **model_results})
+
+            model_memory_results = {
+                f"{bs}x{ss}": results[model_name]["memory"][bs][ss]
+                for bs in results[model_name]["memory"]
+                for ss in results[model_name]["memory"][bs]
+            }
+            memory_writer.writerow({"model": model_name, **model_memory_results})
 
 
 def _compute_pytorch(
@@ -453,8 +457,8 @@ def _compute_pytorch(
 
                         if not no_speed:
                             print("Going through model with sequence of shape", sequence.shape)
-                            runtimes = timeit.repeat(lambda: inference(sequence), repeat=average_over, number=3)
-                            average_time = sum(runtimes) / float(len(runtimes)) / 3.0
+                            runtimes = timeit.repeat(lambda: inference(sequence), repeat=average_over, number=1)
+                            average_time = sum(runtimes) / float(len(runtimes)) / 1.0
                             dictionary[model_name]["results"][batch_size][slice_size] = average_time
                         else:
                             dictionary[model_name]["results"][batch_size][slice_size] = "N/A"
@@ -465,6 +469,47 @@ def _compute_pytorch(
                         dictionary[model_name]["results"][batch_size][slice_size] = "N/A"
                         dictionary[model_name]["memory"][batch_size][slice_size] = "N/A"
     return dictionary
+
+#def summarize_generate(model, input_ids):
+
+
+class MemoryViewer:
+
+    def __init__(self, summary):
+        self.summary = summary
+    @property
+    def total(self):
+        print(f"\nTotal memory increase: {self.summary.total.string}")
+
+    @property
+    def line_by_line(self):
+        print(
+            "\nLines by line memory consumption:\n"
+            + "\n".join(
+                f"{frame.filename}:{frame.line_number}: mem {cpu_gpu_mem.string}: {frame.line_text}"
+                for frame, _, _, cpu_gpu_mem in self.summary.sequential
+            )
+        )
+
+    def top_lines(self, n=6):
+        print(
+            "\nLines with top memory consumption:\n"
+            + "\n".join(
+                f"=> {frame.filename}:{frame.line_number}: mem {cpu_gpu_mem.string}: {frame.line_text}"
+                for frame, _, _, cpu_gpu_mem in self.summary.cumulative[:n]
+            )
+        )
+
+
+    def bottom_lines(self, n=6):
+        print(
+            "\nLines with top memory consumption:\n"
+            + "\n".join(
+                f"=> {frame.filename}:{frame.line_number}: mem {cpu_gpu_mem.string}: {frame.line_text}"
+                for frame, _, _, cpu_gpu_mem in self.summary.cumulative[-n:]
+            )
+        )
+
 
 
 def _compute_tensorflow(
