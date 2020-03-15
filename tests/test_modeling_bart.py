@@ -24,6 +24,7 @@ from .test_modeling_common import ModelTesterMixin, ids_tensor
 from .utils import CACHE_DIR, require_torch, slow, torch_device
 
 
+
 if is_torch_available():
     import torch
     from transformers import (
@@ -41,6 +42,7 @@ if is_torch_available():
     )
     from transformers.tokenization_bart import BartTokenizer
     from transformers import start_memory_tracing, stop_memory_tracing
+    from transformers.file_utils import MemoryViewer
 
 
 @require_torch
@@ -320,7 +322,7 @@ class BartHeadTests(unittest.TestCase):
         model = BartForConditionalGeneration(config).eval().to(torch_device).half()
         trace = start_memory_tracing(modules_to_trace="transformers")
         model.generate(input_ids, attention_mask=attention_mask, do_sample=False, early_stopping=True)
-        summary = stop_memory_tracing(trace)
+        summary = MemoryViewer(stop_memory_tracing(trace))
         import ipdb; ipdb.set_trace()
 
     @unittest.skipIf(torch_device == "cpu", "Cant do half precision")

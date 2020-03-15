@@ -748,3 +748,41 @@ def bytes_to_human_readable(memory_amount):
             return "{:.3f}{}".format(memory_amount, unit)
         memory_amount /= 1024.0
     return "{:.3f}TB".format(memory_amount)
+
+
+class MemoryViewer:
+
+    def __init__(self, summary):
+        self.summary = summary
+    @property
+    def total(self):
+        print(f"\nTotal memory increase: {self.summary.total.string}")
+
+    @property
+    def line_by_line(self):
+        print(
+            "\nLines by line memory consumption:\n"
+            + "\n".join(
+                f"{frame.filename}:{frame.line_number}: mem {cpu_gpu_mem.string}: {frame.line_text}"
+                for frame, _, _, cpu_gpu_mem in self.summary.sequential
+            )
+        )
+
+    def top_lines(self, n=6):
+        print(
+            "\nLines with top memory consumption:\n"
+            + "\n".join(
+                f"=> {frame.filename}:{frame.line_number}: mem {cpu_gpu_mem.string}: {frame.line_text}"
+                for frame, _, _, cpu_gpu_mem in self.summary.cumulative[:n]
+            )
+        )
+
+
+    def bottom_lines(self, n=6):
+        print(
+            "\nLines with top memory consumption:\n"
+            + "\n".join(
+                f"=> {frame.filename}:{frame.line_number}: mem {cpu_gpu_mem.string}: {frame.line_text}"
+                for frame, _, _, cpu_gpu_mem in self.summary.cumulative[-n:]
+            )
+        )
