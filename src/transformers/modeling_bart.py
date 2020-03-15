@@ -327,7 +327,7 @@ class BartEncoder(nn.Module, LoggingMixin):
         return x, encoder_states, all_attentions
 
 
-class DecoderLayer(nn.Module):
+class DecoderLayer(nn.Module, LoggingMixin):
     def __init__(self, config: BartConfig):
         super().__init__()
         self.embed_dim = config.d_model
@@ -898,9 +898,9 @@ class BartForConditionalGeneration(PretrainedBartModel):
 
     def __init__(self, config: BartConfig):
         super().__init__(config)
-        # if base_model is None:
-        base_model = BartModel(config)
-        self.model = base_model
+        # if base_model is Nones:
+        self.log_mem('pre-init')
+        self.model = BartModel(config)
         self.lm_head = _make_linear_from_emb(self.model.shared)
 
     def tie_weights(self):
