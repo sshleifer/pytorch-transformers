@@ -40,6 +40,7 @@ if is_torch_available():
         LARGE_NEGATIVE,
     )
     from transformers.tokenization_bart import BartTokenizer
+    from transformers import start_memory_tracing, stop_memory_tracing
 
 
 @require_torch
@@ -291,6 +292,7 @@ class BartHeadTests(unittest.TestCase):
         # TODO(SS): uneven length batches, empty inputs
 
     def test_shift_tokens_right(self):
+
         input_ids = torch.Tensor([[71, 82, 18, 33, 2, 1, 1], [68, 34, 26, 58, 30, 82, 2]]).long()
         shifted = shift_tokens_right(input_ids, 1)
         n_pad_before = input_ids.eq(1).float().sum()
@@ -316,7 +318,10 @@ class BartHeadTests(unittest.TestCase):
         config, input_ids, batch_size = self._get_config_and_data(output_past=True)
         attention_mask = input_ids.ne(1).to(torch_device)
         model = BartForConditionalGeneration(config).eval().to(torch_device).half()
+        trace = start_memory_tracing(modules_to_trace="transformers")
         model.generate(input_ids, attention_mask=attention_mask, do_sample=False, early_stopping=True)
+        summary = stop_memory_tracing(trace)
+        import ipdb; ipdb.set_trace()
 
     @unittest.skipIf(torch_device == "cpu", "Cant do half precision")
     def test_base_model_fp16(self):
@@ -437,6 +442,7 @@ class BartModelIntegrationTest(unittest.TestCase):
         text = " (CNN)The Palestinian Authority officially became the 123rd member of the International Criminal Court on Wednesday, a step that gives the court jurisdiction over alleged crimes in Palestinian"
         tokens = tok.encode(text, return_tensors="pt").to(torch_device)
         extra_len = 20
+
         gen_tokens = hf.generate(
             tokens,
             num_beams=4,
