@@ -26,6 +26,7 @@ def runner(source_path, out_file, batch_size=8, device=DEFAULT_DEVICE, prof_gene
         )
         model.log_mem('done')
         dec = [tokenizer.decode(s) for s in summaries]
+        print(dec[0])
     else:
         #model.decoder.generation_mode = Fals
         with torch.no_grad():
@@ -36,7 +37,7 @@ def runner(source_path, out_file, batch_size=8, device=DEFAULT_DEVICE, prof_gene
 
     log_df = model.combine_logs()
     log_df.to_csv(out_file)
-    print(dec[0])
+
 
 import argparse
 if __name__ == '__main__':

@@ -904,7 +904,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
         # if base_model is Nones:
         #self.log_mem('pre-init')
         self.model = BartModel(config)
-        self.lm_head = _make_linear_from_emb(self.model.shared)
+        #self.lm_head = _make_linear_from_emb(self.model.shared)
 
     def tie_weights(self):
         pass  # hack to prevent changing lm_head.out_features. The input and output embeddings are still the same.
@@ -972,7 +972,8 @@ class BartForConditionalGeneration(PretrainedBartModel):
             decoder_cached_states=decoder_cached_states,
         )
         self.model.log_mem('after call, before lm_head')
-        lm_logits = self.lm_head(outputs[0])
+        lm_logits = F.linear(outputs[0], self.model.shared.weight)
+        #lm_logits = self.lm_head(outputs[0])
         self.model.log_mem('after lm_head')
         outputs = (lm_logits,) + outputs[1:]  # Add hidden states and attention if they are here
         if lm_labels is not None:
@@ -1025,9 +1026,8 @@ class BartForConditionalGeneration(PretrainedBartModel):
 
         past = ((new_enc_out, new_enc_mask), reordered_past)
         return past
-
     def get_output_embeddings(self):
-        return self.lm_head
+        return _make_linear_from_emb(self.shared)  # make it on the fly
 
 
 @add_start_docstrings(

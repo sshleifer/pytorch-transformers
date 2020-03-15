@@ -261,9 +261,13 @@ class BartHeadTests(unittest.TestCase):
             max_position_embeddings=48,
         )
         lm_model = BartForConditionalGeneration(config).to(torch_device)
+        lm_model.log_mem('starting')
         context = torch.Tensor([[71, 82, 18, 33, 46, 91, 2], [68, 34, 26, 58, 30, 2, 1]]).long().to(torch_device)
         summary = torch.Tensor([[82, 71, 82, 18, 2], [58, 68, 2, 1, 1]]).long().to(torch_device)
-        loss, logits, enc_features = lm_model.forward(input_ids=context, decoder_input_ids=summary, lm_labels=summary)
+        loss, logits, enc_features = lm_model(input_ids=context, decoder_input_ids=summary, lm_labels=summary)
+        log_df = lm_model.combine_logs()
+        tot = log_df.cpu_mem.max()-log_df.cpu_mem.min()
+        self.assertGreaterEqual(tot/1024**2, 3, )
         expected_shape = (*summary.shape, config.vocab_size)
         self.assertEqual(logits.shape, expected_shape)
 
