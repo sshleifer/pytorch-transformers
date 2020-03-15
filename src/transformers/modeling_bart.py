@@ -992,9 +992,9 @@ class BartForConditionalGeneration(PretrainedBartModel):
         else:
             encoder_outputs, decoder_cached_states = past
 
-        input_ids = encoder_inputs # FIXME(SS): dont need this
+        input_ids = encoder_inputs
         return {
-            "input_ids": encoder_inputs,  # ignored after first pass
+            "input_ids": input_ids,  # ignored after first pass
             "encoder_outputs": encoder_outputs,
             "decoder_cached_states": decoder_cached_states,
             "decoder_input_ids": decoder_input_ids,

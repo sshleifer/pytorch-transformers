@@ -9,9 +9,9 @@ def runner(source_path, out_file, batch_size=8, device=DEFAULT_DEVICE, prof_gene
     dct = tokenizer.batch_encode_plus(lns, max_length=1024, return_tensors="pt", pad_to_max_length=True)
     ids = dct['input_ids'].to(DEFAULT_DEVICE)
     msk = dct['attention_mask'].to(DEFAULT_DEVICE)
+    model = BartForConditionalGeneration.from_pretrained('bart-large-cnn', output_past=prof_generate).to(DEFAULT_DEVICE)
     model.log_mem('starting')
     if prof_generate:
-        model = BartForConditionalGeneration.from_pretrained('bart-large-cnn', output_past=True).to(DEFAULT_DEVICE)
         summaries = model.generate(
             input_ids=ids,
             attention_mask=msk,
@@ -27,7 +27,6 @@ def runner(source_path, out_file, batch_size=8, device=DEFAULT_DEVICE, prof_gene
         model.log_mem('done')
         dec = [tokenizer.decode(s) for s in summaries]
     else:
-        model = BartForConditionalGeneration.from_pretrained('bart-large-cnn', output_past=True).to(DEFAULT_DEVICE)
         #model.decoder.generation_mode = False
         model(
             input_ids=ids,
