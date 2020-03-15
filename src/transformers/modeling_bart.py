@@ -899,7 +899,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
     def __init__(self, config: BartConfig):
         super().__init__(config)
         # if base_model is Nones:
-        self.log_mem('pre-init')
+        #self.log_mem('pre-init')
         self.model = BartModel(config)
         self.lm_head = _make_linear_from_emb(self.model.shared)
 
