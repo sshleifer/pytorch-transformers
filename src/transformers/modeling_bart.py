@@ -225,6 +225,7 @@ class EncoderLayer(nn.Module):
         residual = x
         x, attn_weights = self.self_attn(
             query=x, key=x, value=x, key_padding_mask=encoder_padding_mask, need_weights=self.output_attentions,
+            update_layer_state=False,
         )
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
@@ -595,6 +596,7 @@ class SelfAttention(nn.Module, LoggingMixin):
         value: Optional[Tensor],
         key_padding_mask: Optional[Tensor] = None,
         layer_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
+        update_layer_state=True,
         need_weights: bool = False,
         static_kv: bool = False,
         attn_mask: Optional[Tensor] = None,
@@ -654,11 +656,12 @@ class SelfAttention(nn.Module, LoggingMixin):
         # assert self.cache_key != 'encoder_decoder' or key_padding_mask is None
 
         # Update cache
-        layer_state[self.cache_key] = {
-            "prev_key": k.view(bsz, self.num_heads, -1, self.head_dim),
-            "prev_value": v.view(bsz, self.num_heads, -1, self.head_dim),
-            "prev_key_padding_mask": key_padding_mask if not static_kv else None,
-        }
+        if update_layer_state:
+            layer_state[self.cache_key] = {
+                "prev_key": k.view(bsz, self.num_heads, -1, self.head_dim),
+                "prev_value": v.view(bsz, self.num_heads, -1, self.head_dim),
+                "prev_key_padding_mask": key_padding_mask if not static_kv else None,
+            }
 
         assert k is not None
         src_len = k.size(1)
