@@ -442,8 +442,21 @@ class BartModelIntegrationTest(unittest.TestCase):
             self.assertIsNotNone(model)
 
     @slow
+    def test_compare_generation_mem(self):
+        hf = BartForConditionalGeneration.from_pretrained("bart-large-cnn", output_past=True,).to(torch_device)
+        if torch_device == 'cuda':
+            hf = hf.half()
+        tok = BartTokenizer.from_pretrained("bart-large")
+        text = " (CNN)The Palestinian Authority officially became the 123rd member of the International Criminal Court on Wednesday, a step that gives the court jurisdiction over alleged crimes in Palestinian"
+        tokens = tok.encode(text, return_tensors="pt").to(torch_device)
+
+
+
+    @slow
     def test_cnn_summarization_same_as_fairseq_easy(self):
         hf = BartForConditionalGeneration.from_pretrained("bart-large-cnn", output_past=True,).to(torch_device)
+        if torch_device == 'cuda':
+            hf = hf.half()
         tok = BartTokenizer.from_pretrained("bart-large")
         text = " (CNN)The Palestinian Authority officially became the 123rd member of the International Criminal Court on Wednesday, a step that gives the court jurisdiction over alleged crimes in Palestinian"
         tokens = tok.encode(text, return_tensors="pt").to(torch_device)

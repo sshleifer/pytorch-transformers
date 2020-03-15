@@ -30,6 +30,7 @@ from tqdm.auto import tqdm
 
 from . import __version__
 
+from durbango.logging_utils import LoggingMixin
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -650,6 +651,23 @@ def start_memory_tracing(modules_to_trace=None, modules_not_to_trace=None, event
     return memory_trace
 
 
+from py3nvml import py3nvml
+
+
+def run_gpu_mem_counter():
+    # Sum used memory for all GPUs
+    if not torch.cuda.is_available(): return 0
+    py3nvml.nvmlInit()
+    devices = list(range(py3nvml.nvmlDeviceGetCount())) #if gpus_to_trace is None else gpus_to_trace
+    gpu_mem = 0
+    for i in devices:
+        handle = py3nvml.nvmlDeviceGetHandleByIndex(i)
+        meminfo = py3nvml.nvmlDeviceGetMemoryInfo(handle)
+        gpu_mem += meminfo.used
+    py3nvml.nvmlShutdown()
+    return gpu_mem
+
+
 Memory = namedtuple("Memory", ["bytes", "string"])
 MemoryState = namedtuple("MemoryState", ["frame", "cpu", "gpu", "cpu_gpu"])
 MemorySummary = namedtuple("MemorySummary", ["sequential", "cumulative", "total"])
@@ -748,7 +766,20 @@ def bytes_to_human_readable(memory_amount):
             return "{:.3f}{}".format(memory_amount, unit)
         memory_amount /= 1024.0
     return "{:.3f}TB".format(memory_amount)
+import psutil
+import time
 
+def collect_log_data(msg=''):
+    process = psutil.Process(os.getpid())
+    cpu_mem = process.memory_info().rss
+    gpu_mem = run_gpu_mem_counter()
+    record = dict(cpu_mem=cpu_mem, gpu_mem=gpu_mem,
+         time = time.time(),
+         msg=msg)
+    long_msg = f'{msg}: GPU: {bytes_to_human_readable(gpu_mem)} CPU: {bytes_to_human_readable(gpu_mem)}'
+    record['long_msg'] = long_msg
+    print(long_msg)
+    return record
 
 class MemoryViewer:
 

@@ -22,9 +22,9 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 
 from .configuration_bart import BartConfig
-from .file_utils import add_start_docstrings, add_start_docstrings_to_callable
+from .file_utils import add_start_docstrings, add_start_docstrings_to_callable, collect_log_data, bytes_to_human_readable
 from .modeling_utils import PreTrainedModel, create_position_ids_from_input_ids
-
+from durbango.logging_utils import LoggingMixin
 
 logger = logging.getLogger(__name__)
 
@@ -414,7 +414,7 @@ class DecoderLayer(nn.Module):
         )  # just self_attn weights for now, following t5, layer_state = cache for decoding
 
 
-class BartDecoder(nn.Module):
+class BartDecoder(nn.Module, LoggingMixin):
     """
     Transformer decoder consisting of *config.decoder_layers* layers. Each layer
     is a :class:`DecoderLayer`.
@@ -478,6 +478,7 @@ class BartDecoder(nn.Module):
 
         # embed positions
         positions = self.embed_positions(input_ids, generation_mode=self.generation_mode)
+        self.log_mem('decoder: embedded positions')
 
         if self.generation_mode:
             input_ids = input_ids[:, -1:]
@@ -485,6 +486,7 @@ class BartDecoder(nn.Module):
             assert input_ids.ne(self.padding_idx).any()
 
         x = self.embed_tokens(input_ids)
+        self.log_mem('decoder: embedded tokens')
         x += positions
 
         x = self.layernorm_embedding(x)
@@ -511,6 +513,7 @@ class BartDecoder(nn.Module):
                 attention_mask=combined_mask,
                 need_attn_weights=self.output_attentions,
             )
+            self.log_mem(f'decoder: called attn {i}')
 
             if self.output_past:
                 next_decoder_cache.append(layer_past.copy())
@@ -808,11 +811,13 @@ def _filter_out_falsey_values(tup) -> Tuple:
 
 # Public API
 
+import time
+import pandas as pd
 
 @add_start_docstrings(
     "The bare BART Model outputting raw hidden-states without any specific head on top.", BART_START_DOCSTRING,
 )
-class BartModel(PretrainedBartModel):
+class BartModel(PretrainedBartModel, LoggingMixin):
     def __init__(self, config: BartConfig):
         super().__init__(config)
         self.output_attentions = config.output_attentions
@@ -823,6 +828,7 @@ class BartModel(PretrainedBartModel):
 
         self.encoder = BartEncoder(config, self.shared)
         self.decoder = BartDecoder(config, self.shared)
+
 
         self.init_weights()
 
@@ -944,6 +950,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
             tokenizer.decode(predictions).split()
             # ['good', 'great', 'all', 'really', 'very']
         """
+        self.model.log_mem('before BartModel.forward')
         outputs = self.model(
             input_ids,
             attention_mask=attention_mask,
@@ -952,7 +959,9 @@ class BartForConditionalGeneration(PretrainedBartModel):
             decoder_attention_mask=decoder_attention_mask,
             decoder_cached_states=decoder_cached_states,
         )
+        self.model.log_mem('after call, before lm_head')
         lm_logits = self.lm_head(outputs[0])
+        self.model.log_mem('after lm_head')
         outputs = (lm_logits,) + outputs[1:]  # Add hidden states and attention if they are here
         if lm_labels is not None:
             loss_fct = nn.CrossEntropyLoss()
