@@ -31,12 +31,13 @@ def runner(source_path, out_file, batch_size=8, device=DEFAULT_DEVICE):
 import argparse
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "source_path", type=str, default="/home/shleifer/transformers_fork/notebooks/test.source",
-        help="like cnn_dm/test.source",
-    )
+
     parser.add_argument(
         "output_path", type=str, help="where to save summaries",
+    )
+    parser.add_argument(
+        "--source_path", type=str, default="/home/shleifer/transformers_fork/notebooks/test.source",
+        help="like cnn_dm/test.source", required=False
     )
     parser.add_argument(
         "--device", type=str, required=False, default=DEFAULT_DEVICE, help="cuda, cuda:1, cpu etc.",
