@@ -760,13 +760,18 @@ class MemoryViewer:
 
     @property
     def line_by_line(self):
-        print(
+        return (
             "\nLines by line memory consumption:\n"
             + "\n".join(
                 f"{frame.filename}:{frame.line_number}: mem {cpu_gpu_mem.string}: {frame.line_text}"
                 for frame, _, _, cpu_gpu_mem in self.summary.sequential
             )
         )
+
+    def save_line_by_line(self, path):
+        res = self.line_by_line
+        with open(path, 'w') as f:
+            f.write(res)
 
     def top_lines(self, n=6):
         print(
