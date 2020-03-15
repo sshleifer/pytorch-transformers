@@ -1,7 +1,7 @@
 from transformers import *
 import torch
 DEFAULT_DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-def runner(source_path, out_file, batch_size=8, device=DEFAULT_DEVICE):
+def runner(source_path, out_file, batch_size=8, device=DEFAULT_DEVICE, prof_generate=False):
 
     tokenizer = BartTokenizer.from_pretrained('bart-large')
     lns = [" " + x.rstrip() for x in open(source_path).readlines()][:batch_size]
@@ -10,20 +10,28 @@ def runner(source_path, out_file, batch_size=8, device=DEFAULT_DEVICE):
     ids = dct['input_ids'].to(DEFAULT_DEVICE)
     msk = dct['attention_mask'].to(DEFAULT_DEVICE)
     model.log_mem('starting')
-    summaries = model.generate(
-        input_ids=ids,
-        attention_mask=msk,
-        num_beams=4,
-        length_penalty=2.0,
-        max_length=140 + 2,  # +2 from original because we start at step=1 and stop before max_length
-        min_length=55 + 1,  # +1 from original because we start at step=1
-        no_repeat_ngram_size=3,
-        early_stopping=True,
-        do_sample=False,
-        decoder_start_token_id=model.config.eos_token_ids[0],
-    )
-    model.log_mem('done')
-    dec = [tokenizer.decode(s) for s in summaries]
+    if prof_generate:
+        summaries = model.generate(
+            input_ids=ids,
+            attention_mask=msk,
+            num_beams=4,
+            length_penalty=2.0,
+            max_length=140 + 2,  # +2 from original because we start at step=1 and stop before max_length
+            min_length=55 + 1,  # +1 from original because we start at step=1
+            no_repeat_ngram_size=3,
+            early_stopping=True,
+            do_sample=False,
+            decoder_start_token_id=model.config.eos_token_ids[0],
+        )
+        model.log_mem('done')
+        dec = [tokenizer.decode(s) for s in summaries]
+    else:
+        #model.decoder.generation_mode = False
+        model(
+            input_ids=ids,
+            attention_mask=msk,
+        )
+
     log_df = model.combine_logs()
     log_df.to_csv(out_file)
     print(dec[0])
@@ -45,8 +53,11 @@ if __name__ == '__main__':
     parser.add_argument(
         "--bs", type=int, default=8, required=False, help="batch size: how many to summarize at a time",
     )
+    parser.add_argument(
+        "--do-generate", action='store_true', required=False, help="batch size: how many to summarize at a time",
+    )
     args = parser.parse_args()
-    runner(args.source_path, args.output_path, batch_size=args.bs, device=args.device)
+    runner(args.source_path, args.output_path, batch_size=args.bs, device=args.device, prof_generate=args.do_generate)
 
 
 
