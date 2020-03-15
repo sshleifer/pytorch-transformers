@@ -11,7 +11,9 @@ def runner(source_path, out_file, batch_size=8, device=DEFAULT_DEVICE, prof_gene
     msk = dct['attention_mask'].to(DEFAULT_DEVICE)
     model = BartForConditionalGeneration.from_pretrained('bart-large-cnn', output_past=prof_generate).to(DEFAULT_DEVICE)
     model.log_mem('starting')
+    model.lm_head.cpu()
     if prof_generate:
+
         summaries = model.generate(
             input_ids=ids,
             attention_mask=msk,
