@@ -324,7 +324,7 @@ class BartHeadTests(unittest.TestCase):
         trace = start_memory_tracing(modules_to_trace="transformers")
         model.generate(input_ids, attention_mask=attention_mask, do_sample=False, early_stopping=True)
         summary = MemoryViewer(stop_memory_tracing(trace))
-        summary.save_line_by_line('hf_mem.txt')
+        summary.save_line_by_line('hf_mem_half_gen.txt')
 
 
 
