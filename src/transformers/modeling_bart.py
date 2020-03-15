@@ -107,7 +107,7 @@ def _prepare_bart_decoder_inputs(
     return decoder_input_ids, decoder_attn_mask
 
 
-class PretrainedBartModel(PreTrainedModel):
+class PretrainedBartModel(PreTrainedModel, LoggingMixin):
     config_class = BartConfig
     base_model_prefix = "model"
     pretrained_model_archive_map = BART_PRETRAINED_MODEL_ARCHIVE_MAP
@@ -240,7 +240,7 @@ class EncoderLayer(nn.Module):
         return x, attn_weights
 
 
-class BartEncoder(nn.Module):
+class BartEncoder(nn.Module, LoggingMixin):
     """
     Transformer encoder consisting of *config.encoder_layers* self attention layers. Each layer
     is a :class:`EncoderLayer`.
@@ -304,7 +304,7 @@ class BartEncoder(nn.Module):
         encoder_states, all_attentions = [], []
 
         # encoder layers
-        for encoder_layer in self.layers:
+        for i, encoder_layer in enumerate(self.layers):
 
             if self.output_hidden_states:
                 encoder_states.append(x)
@@ -314,6 +314,7 @@ class BartEncoder(nn.Module):
                 attn = None
             else:
                 x, attn = encoder_layer(x, attention_mask)
+            self.log_mem('encoder: called layer {}')
 
             if self.output_attentions:
                 all_attentions.append(attn)
@@ -544,7 +545,7 @@ def reorder_attn_buffer(input_buffer, new_order):
     return input_buffer
 
 
-class SelfAttention(nn.Module):
+class SelfAttention(nn.Module, LoggingMixin):
     """Multi-headed attention from "Attention Is All You Need"""
 
     def __init__(
@@ -582,6 +583,10 @@ class SelfAttention(nn.Module):
 
     def _shape(self, tensor, dim_0, bsz):
         return tensor.contiguous().view(dim_0, bsz * self.num_heads, self.head_dim).transpose(0, 1)
+
+
+    def log_mem(self, msg='', verbose=False):
+        super().log_mem(msg=f'{self.cache_key}_attn:{msg}', verbose=verbose)
 
     def forward(
         self,
@@ -623,6 +628,7 @@ class SelfAttention(nn.Module):
             layer_state = {}
 
         q = self.q_proj(query) * self.scaling
+        self.log_mem('\tq_proj')
         if self.encoder_decoder_attention:
             if key is None:
                 assert value is None
@@ -635,12 +641,15 @@ class SelfAttention(nn.Module):
             v = self.v_proj(query)
 
         q = self._shape(q, tgt_len, bsz)
+        self.log_mem('\tq_reshape')
         if k is not None:
             k = self._shape(k, -1, bsz)
         if v is not None:
             v = self._shape(v, -1, bsz)
+            self.log_mem('\t done reshaping k,v')
 
         if saved_state is not None:
+            self.log_mem('\t about to use saved_state')
             k, v, key_padding_mask = self._use_saved_state(k, v, saved_state, key_padding_mask, static_kv, bsz)
         # assert self.cache_key != 'encoder_decoder' or key_padding_mask is None
 
@@ -739,7 +748,7 @@ class SelfAttention(nn.Module):
         return new_key_padding_mask
 
 
-class BartClassificationHead(nn.Module):
+class BartClassificationHead(nn.Module, LoggingMixin):
     """Head for sentence-level classification tasks."""
 
     # This can trivially be shared with RobertaClassificationHead
@@ -817,7 +826,7 @@ import pandas as pd
 @add_start_docstrings(
     "The bare BART Model outputting raw hidden-states without any specific head on top.", BART_START_DOCSTRING,
 )
-class BartModel(PretrainedBartModel, LoggingMixin):
+class BartModel(PretrainedBartModel):
     def __init__(self, config: BartConfig):
         super().__init__(config)
         self.output_attentions = config.output_attentions

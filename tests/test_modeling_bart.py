@@ -246,6 +246,7 @@ class BartHeadTests(unittest.TestCase):
         expected_shape = (batch_size, input_ids.shape[1], config.vocab_size)
         self.assertEqual(logits.shape, expected_shape)
         self.assertIsInstance(loss.item(), float)
+        log_df = lm_model.combine_logs()
 
     def test_lm_uneven_forward(self):
         config = BartConfig(
