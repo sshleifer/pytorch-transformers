@@ -287,6 +287,7 @@ class BartHeadTests(unittest.TestCase):
         lm_model.eval()
 
         max_length = 5
+
         new_input_ids = lm_model.generate(
             input_ids.clone(), num_return_sequences=1, num_beams=2, no_repeat_ngram_size=3, max_length=max_length
         )
@@ -323,7 +324,9 @@ class BartHeadTests(unittest.TestCase):
         trace = start_memory_tracing(modules_to_trace="transformers")
         model.generate(input_ids, attention_mask=attention_mask, do_sample=False, early_stopping=True)
         summary = MemoryViewer(stop_memory_tracing(trace))
-        import ipdb; ipdb.set_trace()
+        summary.save_line_by_line('hf_mem.txt')
+
+
 
     @unittest.skipIf(torch_device == "cpu", "Cant do half precision")
     def test_base_model_fp16(self):
@@ -408,14 +411,15 @@ class BartModelIntegrationTest(unittest.TestCase):
 
         example_b = [0, 31414, 232, 328, 740, 1140, 69, 46078, 1588, 2, 1]
         input_ids = _long_tensor([[0, 31414, 232, 328, 740, 1140, 12695, 69, 46078, 1588, 2], example_b])
-
-        model = AutoModelForSequenceClassification.from_pretrained("bart-large-mnli").to(
-            torch_device
-        )  # eval called in from_pre
+        model = AutoModelForSequenceClassification.from_pretrained("bart-large-mnli").to(torch_device)
         inputs_dict = prepare_bart_inputs_dict(model.config, input_ids)
         # Test that model hasn't changed
+        trace = start_memory_tracing(modules_to_trace="transformers")
+
         with torch.no_grad():
             batched_logits, features = model.forward(**inputs_dict)
+        summary = MemoryViewer(stop_memory_tracing(trace))
+        summary.save_line_by_line('hf_mem.txt')
         expected_shape = torch.Size((2, 3))
         self.assertEqual(batched_logits.shape, expected_shape)
         expected_slice = torch.Tensor([[0.1907, 1.4342, -1.0289]]).to(torch_device)
