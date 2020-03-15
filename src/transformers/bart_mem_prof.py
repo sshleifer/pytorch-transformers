@@ -27,11 +27,12 @@ def runner(source_path, out_file, batch_size=8, device=DEFAULT_DEVICE, prof_gene
         model.log_mem('done')
         dec = [tokenizer.decode(s) for s in summaries]
     else:
-        #model.decoder.generation_mode = False
-        model(
-            input_ids=ids,
-            attention_mask=msk,
-        )
+        #model.decoder.generation_mode = Fals
+        with torch.no_grad():
+            model(
+                input_ids=ids,
+                attention_mask=msk,
+            )
 
     log_df = model.combine_logs()
     log_df.to_csv(out_file)
