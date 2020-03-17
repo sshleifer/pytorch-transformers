@@ -315,7 +315,7 @@ class BartEncoder(nn.Module, LoggingMixin):
                 attn = None
             else:
                 x, attn = encoder_layer(x, attention_mask)
-            self.log_mem('encoder: called layer {}')
+            self.log_mem('encoder: called layer {i}')
 
             if self.output_attentions:
                 all_attentions.append(attn)
@@ -537,9 +537,7 @@ class BartDecoder(nn.Module, LoggingMixin):
 
 def reorder_attn_buffer(input_buffer, new_order):
     """Reorder buffered internal state (for incremental generation)."""
-    # input_buffer = self._get_input_buffer(incremental_state)
-    for k in input_buffer.keys():
-        input_buffer_k = input_buffer[k]
+    for k, input_buffer_k in input_buffer.items():
         if input_buffer_k is not None:
             input_buffer[k] = input_buffer_k.index_select(0, new_order)
         # incremental_state = self._set_input_buffer(incremental_state, input_buffer)
