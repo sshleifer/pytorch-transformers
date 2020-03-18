@@ -676,7 +676,7 @@ class SelfAttention(nn.Module, LoggingMixin):
             key_padding_mask = None
         assert key_padding_mask is None or key_padding_mask.size()[:2] == (bsz, src_len,)
 
-        if key_padding_mask is not None:  # don't attend to padding symbols
+        if key_padding_mask is not None:  # shape (bsz, src_len)
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
             attn_weights = attn_weights + key_padding_mask.unsqueeze(1).unsqueeze(2)
             #reshaped = key_padding_mask.unsqueeze(1).unsqueeze(2)#.to(torch.bool)
@@ -1025,8 +1025,9 @@ class BartForConditionalGeneration(PretrainedBartModel):
 
         past = ((new_enc_out, new_enc_mask), reordered_past)
         return past
+
     def get_output_embeddings(self):
-        return _make_linear_from_emb(self.shared)  # make it on the fly
+        return _make_linear_from_emb(self.model.shared)  # make it on the fly
 
 
 @add_start_docstrings(
