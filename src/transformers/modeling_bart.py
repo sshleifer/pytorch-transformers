@@ -292,7 +292,7 @@ class BartEncoder(nn.Module, LoggingMixin):
             assert attention_mask.dim() == 2
 
             attention_mask = (1.0 - attention_mask.long()).long()
-            assert attention_mask.max() <= 0
+            #assert attention_mask.max() <= 0
         inputs_embeds = self.embed_tokens(input_ids)
         embed_pos = self.embed_positions(input_ids)
         x = inputs_embeds + embed_pos
