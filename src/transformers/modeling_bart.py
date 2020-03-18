@@ -678,8 +678,9 @@ class SelfAttention(nn.Module, LoggingMixin):
 
         if key_padding_mask is not None:  # don't attend to padding symbols
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-            reshaped = key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool)
-            attn_weights = attn_weights.masked_fill(reshaped, float("-inf"))
+            attn_weights = attn_weights + key_padding_mask.unsqueeze(1).unsqueeze(2)
+            #reshaped = key_padding_mask.unsqueeze(1).unsqueeze(2)#.to(torch.bool)
+            #attn_weights = attn_weights.masked_fill(reshaped, float("-inf"))
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
         attn_weights = F.softmax(attn_weights, dim=-1)
         attn_probs = F.dropout(attn_weights, p=self.dropout, training=self.training,)
