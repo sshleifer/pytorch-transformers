@@ -19,6 +19,18 @@ else:
 
 import logging
 
+# Benchmarking
+from .benchmark_utils import (
+    Frame,
+    Memory,
+    MemoryState,
+    MemorySummary,
+    MemoryTrace,
+    UsedMemoryState,
+    bytes_to_human_readable,
+    start_memory_tracing,
+    stop_memory_tracing,
+)
 from .configuration_albert import ALBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, AlbertConfig
 from .configuration_auto import ALL_PRETRAINED_CONFIG_ARCHIVE_MAP, AutoConfig
 from .configuration_bart import BartConfig
@@ -104,6 +116,7 @@ from .pipelines import (
     Pipeline,
     PipelineDataFormat,
     QuestionAnsweringPipeline,
+    SummarizationPipeline,
     TextClassificationPipeline,
     TokenClassificationPipeline,
     pipeline,
@@ -223,14 +236,6 @@ if is_torch_available():
         RobertaForQuestionAnswering,
         ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP,
     )
-    from .modeling_camembert import (
-        CamembertForMaskedLM,
-        CamembertModel,
-        CamembertForSequenceClassification,
-        CamembertForTokenClassification,
-        CamembertForQuestionAnswering,
-        CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_MAP,
-    )
     from .modeling_distilbert import (
         DistilBertPreTrainedModel,
         DistilBertForMaskedLM,
@@ -246,6 +251,7 @@ if is_torch_available():
         CamembertForSequenceClassification,
         CamembertForMultipleChoice,
         CamembertForTokenClassification,
+        CamembertForQuestionAnswering,
         CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_MAP,
     )
     from .modeling_encoder_decoder import PreTrainedEncoderDecoder
@@ -401,6 +407,13 @@ if is_tf_available():
         TFCamembertForSequenceClassification,
         TFCamembertForTokenClassification,
         TF_CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_MAP,
+    )
+
+    from .modeling_tf_flaubert import (
+        TFFlaubertModel,
+        TFFlaubertWithLMHeadModel,
+        TFFlaubertForSequenceClassification,
+        TF_FLAUBERT_PRETRAINED_MODEL_ARCHIVE_MAP,
     )
 
     from .modeling_tf_distilbert import (

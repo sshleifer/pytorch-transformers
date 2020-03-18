@@ -144,13 +144,13 @@ class BARTModelTest(ModelTesterMixin, unittest.TestCase):
         _check_var(model.encoder.layers[0].fc1)
         _check_var(model.encoder.embed_positions)
 
-        decoder_features_with_created_mask = model.forward(**inputs_dict)[0]
-        decoder_features_with_passed_mask = model.forward(
+        decoder_features_with_created_mask = model(**inputs_dict)[0]
+        decoder_features_with_passed_mask = model(
             decoder_attention_mask=decoder_attn_mask, decoder_input_ids=decoder_input_ids, **inputs_dict
         )[0]
         _assert_tensors_equal(decoder_features_with_passed_mask, decoder_features_with_created_mask)
         useless_mask = torch.zeros_like(decoder_attn_mask)
-        decoder_features = model.forward(decoder_attention_mask=useless_mask, **inputs_dict)[0]
+        decoder_features = model(decoder_attention_mask=useless_mask, **inputs_dict)[0]
         self.assertTrue(isinstance(decoder_features, torch.Tensor))  # no hidden states or attentions
         self.assertEqual(
             decoder_features.size(), (self.model_tester.batch_size, self.model_tester.seq_length, config.d_model)
@@ -159,7 +159,7 @@ class BARTModelTest(ModelTesterMixin, unittest.TestCase):
             self.assertFalse((decoder_features_with_created_mask == decoder_features).all().item())
 
         # Test different encoder attention masks
-        decoder_features_with_long_encoder_mask = model.forward(
+        decoder_features_with_long_encoder_mask = model(
             inputs_dict["input_ids"], attention_mask=inputs_dict["attention_mask"].long()
         )[0]
         _assert_tensors_equal(decoder_features_with_long_encoder_mask, decoder_features_with_created_mask)
@@ -240,7 +240,7 @@ class BartHeadTests(unittest.TestCase):
         decoder_lm_labels = ids_tensor([batch_size, input_ids.shape[1]], self.vocab_size).to(torch_device)
         lm_model = BartForConditionalGeneration(config)
         lm_model.to(torch_device)
-        loss, logits, enc_features = lm_model.forward(
+        loss, logits, enc_features = lm_model(
             input_ids=input_ids, lm_labels=decoder_lm_labels, decoder_input_ids=input_ids
         )
         expected_shape = (batch_size, input_ids.shape[1], config.vocab_size)
@@ -268,8 +268,6 @@ class BartHeadTests(unittest.TestCase):
         log_df = lm_model.combine_logs()
         tot = log_df.cpu_mem.max()-log_df.cpu_mem.min()
         self.assertGreaterEqual(tot/1024**2, 3, )
-        expected_shape = (*summary.shape, config.vocab_size)
-        self.assertEqual(logits.shape, expected_shape)
 
     def test_generate_beam_search(self):
         input_ids = torch.Tensor([[71, 82, 2], [68, 34, 2]]).long().to(torch_device)
@@ -294,7 +292,12 @@ class BartHeadTests(unittest.TestCase):
         max_length = 5
 
         new_input_ids = lm_model.generate(
-            input_ids.clone(), num_return_sequences=1, num_beams=2, no_repeat_ngram_size=3, max_length=max_length
+            input_ids.clone(),
+            do_sample=True,
+            num_return_sequences=1,
+            num_beams=2,
+            no_repeat_ngram_size=3,
+            max_length=max_length,
         )
         self.assertEqual(new_input_ids.shape, (input_ids.shape[0], max_length - 1))
         # TODO(SS): uneven length batches, empty inputs
@@ -396,14 +399,14 @@ TOLERANCE = 1e-4
 
 
 @require_torch
-class BartModelIntegrationTest(unittest.TestCase):
+class BartModelIntegrationTests(unittest.TestCase):
     @slow
     def test_inference_no_head(self):
         model = BartModel.from_pretrained("bart-large").to(torch_device)
         input_ids = _long_tensor([[0, 31414, 232, 328, 740, 1140, 12695, 69, 46078, 1588, 2]])
         inputs_dict = prepare_bart_inputs_dict(model.config, input_ids)
         with torch.no_grad():
-            output = model.forward(**inputs_dict)[0]
+            output = model(**inputs_dict)[0]
         expected_shape = torch.Size((1, 11, 1024))
         self.assertEqual(output.shape, expected_shape)
         expected_slice = torch.tensor(
@@ -423,8 +426,6 @@ class BartModelIntegrationTest(unittest.TestCase):
 
         with torch.no_grad():
             batched_logits, features = model.forward(**inputs_dict)
-        #summary = MemoryViewer(stop_memory_tracing(trace))
-        #summary.save_line_by_line('hf_mem.txt')
         expected_shape = torch.Size((2, 3))
         self.assertEqual(batched_logits.shape, expected_shape)
         expected_slice = torch.Tensor([[0.1907, 1.4342, -1.0289]]).to(torch_device)
@@ -435,7 +436,7 @@ class BartModelIntegrationTest(unittest.TestCase):
 
         inputs_dict = prepare_bart_inputs_dict(model.config, input_ids=input_ids_no_pad)
         with torch.no_grad():
-            logits2 = model.forward(**inputs_dict)[0]
+            logits2 = model(**inputs_dict)[0]
         _assert_tensors_equal(batched_logits[1], logits2, atol=TOLERANCE)
         _assert_tensors_equal(expected_slice, logits_arr, atol=TOLERANCE)
 
@@ -455,10 +456,8 @@ class BartModelIntegrationTest(unittest.TestCase):
         text = " (CNN)The Palestinian Authority officially became the 123rd member of the International Criminal Court on Wednesday, a step that gives the court jurisdiction over alleged crimes in Palestinian"
         tokens = tok.encode(text, return_tensors="pt").to(torch_device)
 
-
-
     @slow
-    def test_cnn_summarization_same_as_fairseq_easy(self):
+    def test_cnn_easy_summarization_same_as_fairseq(self):
         hf = BartForConditionalGeneration.from_pretrained("bart-large-cnn", output_past=True,).to(torch_device)
         if torch_device == 'cuda':
             hf = hf.half()

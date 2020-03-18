@@ -223,10 +223,8 @@ class EncoderLayer(nn.Module):
             encoded output of shape `(seq_len, batch, embed_dim)`
         """
         residual = x
-        x, attn_weights = self.self_attn(
-            query=x, key=x, value=x, key_padding_mask=encoder_padding_mask, need_weights=self.output_attentions,
-            update_layer_state=False,
-        )
+        x, attn_weights = self.self_attn(query=x, key=x, value=x, key_padding_mask=encoder_padding_mask, update_layer_state=False,)
+
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
         x = self.self_attn_layer_norm(x)
@@ -379,7 +377,7 @@ class DecoderLayer(nn.Module, LoggingMixin):
             layer_state = {}
         # next line mutates layer state
         x, self_attn_weights = self.self_attn(
-            query=x, key=y, value=y, layer_state=layer_state, need_weights=need_attn_weights, attn_mask=attention_mask,
+            query=x, key=y, value=y, layer_state=layer_state, attn_mask=attention_mask,
         )
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
@@ -394,7 +392,6 @@ class DecoderLayer(nn.Module, LoggingMixin):
             key_padding_mask=encoder_attn_mask,
             layer_state=layer_state,  # mutates layer state
             static_kv=True,
-            need_weights=False,  # not returning it so why compute it
         )
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
@@ -441,7 +438,6 @@ class BartDecoder(nn.Module, LoggingMixin):
             [DecoderLayer(config) for _ in range(config.decoder_layers)]
         )  # type: List[DecoderLayer]
         self.layernorm_embedding = LayerNorm(config.d_model)
-        self.generation_mode = False
 
     def forward(
         self,
@@ -450,6 +446,7 @@ class BartDecoder(nn.Module, LoggingMixin):
         encoder_padding_mask,
         combined_mask,
         decoder_cached_states=None,
+        generation_mode=False,
         **unused
     ):
         """
@@ -478,10 +475,11 @@ class BartDecoder(nn.Module, LoggingMixin):
             assert encoder_padding_mask.max() <= 0
 
         # embed positions
-        positions = self.embed_positions(input_ids, generation_mode=self.generation_mode)
-        self.log_mem('decoder: embedded positions')
 
-        if self.generation_mode:
+        self.log_mem('decoder: embedded positions')
+        positions = self.embed_positions(input_ids, generation_mode=generation_mode)
+
+        if generation_mode:
             input_ids = input_ids[:, -1:]
             positions = positions[:, -1:]  # happens after we embed them
             assert input_ids.ne(self.padding_idx).any()
@@ -550,16 +548,12 @@ class SelfAttention(nn.Module, LoggingMixin):
         self,
         embed_dim,
         num_heads,
-        kdim=None,
-        vdim=None,
         dropout=0.0,
         bias=True,
         encoder_decoder_attention=False,  # otherwise self_attention
     ):
         super().__init__()
         self.embed_dim = embed_dim
-        self.kdim = kdim if kdim is not None else embed_dim
-        self.vdim = vdim if vdim is not None else embed_dim
 
         self.num_heads = num_heads
         self.dropout = dropout
@@ -568,13 +562,8 @@ class SelfAttention(nn.Module, LoggingMixin):
         self.scaling = self.head_dim ** -0.5
 
         self.encoder_decoder_attention = encoder_decoder_attention
-        qkv_same_dim = self.kdim == embed_dim and self.vdim == embed_dim  # True for all BART
-
-        assert self.encoder_decoder_attention or qkv_same_dim, (
-            "Self-attention requires query, key and " "value to be of the same size"
-        )
-        self.k_proj = nn.Linear(self.kdim, embed_dim, bias=bias)
-        self.v_proj = nn.Linear(self.vdim, embed_dim, bias=bias)
+        self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.v_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.cache_key = "encoder_decoder" if self.encoder_decoder_attention else "self"
@@ -594,7 +583,6 @@ class SelfAttention(nn.Module, LoggingMixin):
         key_padding_mask: Optional[Tensor] = None,
         layer_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
         update_layer_state=True,
-        need_weights: bool = False,
         static_kv: bool = False,
         attn_mask: Optional[Tensor] = None,
     ) -> Tuple[Tensor, Optional[Tensor]]:
@@ -605,8 +593,6 @@ class SelfAttention(nn.Module, LoggingMixin):
             key_padding_mask (ByteTensor, optional): mask to exclude
                 keys that are pads, of shape `(batch, src_len)`, where
                 padding elements are indicated by 1s.
-            need_weights (bool, optional): return the attention weights,
-                averaged over heads (default: False).
             attn_mask (ByteTensor, optional): typically used to
                 implement causal attention, where the mask prevents the
                 attention from looking forward in time (default: None).
@@ -850,10 +836,11 @@ class BartModel(PretrainedBartModel):
         encoder_outputs=None,  # type: Tuple
         decoder_attention_mask=None,
         decoder_cached_states=None,
+        generation_mode=False,
     ):
 
         # make masks if user doesn't supply
-        if not self.decoder.generation_mode:
+        if not generation_mode:
             decoder_input_ids, decoder_attention_mask = _prepare_bart_decoder_inputs(
                 self.config,
                 input_ids,
@@ -872,6 +859,7 @@ class BartModel(PretrainedBartModel):
             attention_mask,
             decoder_attention_mask,
             decoder_cached_states=decoder_cached_states,
+            generation_mode=generation_mode,
         )
         # Attention and hidden_states will be [] or None if they aren't needed
         decoder_outputs = _filter_out_falsey_values(decoder_outputs)  # type: tuple
@@ -916,6 +904,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
         decoder_attention_mask=None,
         decoder_cached_states=None,
         lm_labels=None,
+        generation_mode=False,
         **unused
     ):
         r"""
@@ -967,6 +956,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
             encoder_outputs=encoder_outputs,
             decoder_attention_mask=decoder_attention_mask,
             decoder_cached_states=decoder_cached_states,
+            generation_mode=generation_mode,
         )
         self.model.log_mem('after call, before lm_head')
         lm_logits = F.linear(outputs[0], self.model.shared.weight)
@@ -997,6 +987,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
             "decoder_cached_states": decoder_cached_states,
             "decoder_input_ids": decoder_input_ids,
             "attention_mask": attention_mask,
+            "generation_mode": True,
         }
 
     def prepare_scores_for_generation(self, scores, cur_len, max_length):

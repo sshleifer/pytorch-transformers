@@ -656,8 +656,8 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
         input_ids=None,
         max_length=None,
         min_length=None,
-        do_sample=True,
-        early_stopping=False,
+        do_sample=None,
+        early_stopping=None,
         num_beams=None,
         temperature=None,
         top_k=None,
@@ -691,7 +691,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
                 The max length of the sequence to be generated.  Between 1 and infinity. Default to 20.
 
             do_sample: (`optional`) bool
-                If set to `False` greedy decoding is used. Otherwise sampling is used. Defaults to `True`.
+                If set to `False` greedy decoding is used. Otherwise sampling is used. Defaults to `False`.
 
             num_beams: (`optional`) int
                 Number of beams for beam search. Must be between 1 and infinity. 1 means no beam search. Default to 1.
@@ -888,7 +888,6 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
             attention_mask = attention_mask.contiguous().view(
                 effective_batch_size * num_beams, input_ids_len
             )  # shape: (batch_size * num_return_sequences * num_beams, cur_len)
-
         if self.config.is_encoder_decoder:
             assert bos_token_id is not None, "Encoder Decoder Models need to have a bos_token_id"
             # encoder decoder need to start with empty input_ids and copy the input_ids to encoder_inputs
@@ -901,9 +900,6 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
             )
             cur_len = 1
 
-            # put model in generation mode if it has one
-            if hasattr(self.model, "decoder") and hasattr(self.model.decoder, "generation_mode"):
-                self.model.decoder.generation_mode = True
         else:
             encoder_inputs = None
             cur_len = input_ids.shape[-1]
