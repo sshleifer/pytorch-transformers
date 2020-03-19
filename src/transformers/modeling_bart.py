@@ -26,6 +26,7 @@ from .configuration_bart import BartConfig
 from .file_utils import add_start_docstrings, add_start_docstrings_to_callable, collect_log_data, bytes_to_human_readable
 from .modeling_utils import PreTrainedModel, create_position_ids_from_input_ids
 from durbango.logging_utils import LoggingMixin
+from durbango.torch_utils import print_tensor_sizes, local_sizeof, get_tensor_shapes_and_pointers
 
 logger = logging.getLogger(__name__)
 
@@ -284,14 +285,14 @@ class BartEncoder(nn.Module, LoggingMixin):
             attention_mask = attention_mask.eq(0)
 
         inputs_embeds = self.embed_tokens(input_ids)
-        embed_pos = self.embed_positions(input_ids)
-        x = inputs_embeds + embed_pos
+        x = inputs_embeds + self.embed_positions(input_ids)
         x = self.layernorm_embedding(x)
         x = F.dropout(x, p=self.dropout, training=self.training)
+        assert not self.output_attentions or self.output_hidden_states
 
         # B x T x C -> T x B x C
         x = x.transpose(0, 1)
-
+        self.log_mem('encoder: starting_loop')
         encoder_states, all_attentions = [], []
         for i, encoder_layer in enumerate(self.layers):
 
@@ -304,7 +305,7 @@ class BartEncoder(nn.Module, LoggingMixin):
             else:
                 x, attn = encoder_layer(x, attention_mask)
             self.log_mem('encoder: called layer {i}', verbose=True)
-            self.save_log_csv('hf_fwd_logs.csv')
+            self.save_logs('hf_fwd_logs.txt')
 
             if self.output_attentions:
                 all_attentions.append(attn)
