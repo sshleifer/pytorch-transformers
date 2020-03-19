@@ -233,7 +233,7 @@ class EncoderLayer(nn.Module, LoggingMixin):
         x = self.final_layer_norm(x)
         return x, attn_weights
 
-
+import gc
 class BartEncoder(nn.Module, LoggingMixin):
     """
     Transformer encoder consisting of *config.encoder_layers* self attention layers. Each layer
@@ -307,6 +307,7 @@ class BartEncoder(nn.Module, LoggingMixin):
             else:
                 x, attn = encoder_layer(x, attention_mask)
             assert len(encoder_states) == 0
+            assert len(all_attentions) == 0
             self.log_mem(f'x: {x.shape}, attn: {attn.shape}')
             self.log_mem(f'encoder: called layer {i}', verbose=True)
             self.save_logs('hf_fwd_logs.txt')
@@ -627,7 +628,7 @@ class SelfAttention(nn.Module, LoggingMixin):
         attn_output = attn_output.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim)
         attn_output = self.out_proj(attn_output)
         #attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-        return attn_output, attn_weights
+        return attn_output, None
 
     def _use_saved_state(self, k, v, saved_state, key_padding_mask, static_kv, bsz):
         # saved states are stored with shape (bsz, num_heads, seq_len, head_dim)
