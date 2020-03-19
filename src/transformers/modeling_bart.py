@@ -188,7 +188,7 @@ def make_padding_mask(input_ids, padding_idx=1):
 from durbango.torch_utils import get_shapes
 
 
-class EncoderLayer(nn.Module):
+class EncoderLayer(nn.Module, LoggingMixin):
     def __init__(self, config: BartConfig):
         super().__init__()
         self.embed_dim = config.d_model
