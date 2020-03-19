@@ -396,7 +396,25 @@ def _long_tensor(tok_lst):
 
 
 TOLERANCE = 1e-4
+DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+@require_torch
+class MemoryTests(unittest.TestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        source_path = "test.source"
+        cls.lns = [" " + x.rstrip() for x in open(source_path).readlines()][:8]
+        tokenizer = BartTokenizer.from_pretrained('bart-large')
+        dct = tokenizer.batch_encode_plus(cls.lns, max_length=1024, return_tensors="pt", pad_to_max_length=True)
+        cls.ids = dct['input_ids'].to(DEFAULT_DEVICE)
+
+
+    def test_base_model_mem(self):
+        model = BartModel.from_pretrained('bart-large').to(DEFAULT_DEVICE)
+        model.reset_logs()
+        import ipdb; ipdb; ipdb.set_trace()
+        log_df = model.combine_logs()
+        log_df.to_csv('hf_batch_fwd_logs.csv')
 
 @require_torch
 class BartModelIntegrationTests(unittest.TestCase):
