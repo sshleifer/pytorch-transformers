@@ -614,8 +614,8 @@ class SelfAttention(nn.Module, LoggingMixin):
         assert attn_output.size() == (bsz * self.num_heads, tgt_len, self.head_dim)
         attn_output = attn_output.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim)
         attn_output = self.out_proj(attn_output)
-        attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-        return attn_output, attn_weights
+        #attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
+        return attn_output, ()
 
     def _use_saved_state(self, k, v, saved_state, key_padding_mask, static_kv, bsz):
         # saved states are stored with shape (bsz, num_heads, seq_len, head_dim)
