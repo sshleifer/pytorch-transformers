@@ -294,6 +294,7 @@ class BartEncoder(nn.Module, LoggingMixin):
         x = x.transpose(0, 1)
         self.log_mem('encoder: starting_loop')
         encoder_states, all_attentions = [], []
+        rdd_start = print_tensor_sizes()
         for i, encoder_layer in enumerate(self.layers):
 
             if self.output_hidden_states:
@@ -308,6 +309,7 @@ class BartEncoder(nn.Module, LoggingMixin):
             self.save_logs('hf_fwd_logs.txt')
             if i > 10:
                 rdd = print_tensor_sizes()
+                rdd.to_csv(f'rdd_step_{i}.csv')
 
             if self.output_attentions:
                 all_attentions.append(attn)
