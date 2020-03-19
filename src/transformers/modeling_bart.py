@@ -304,6 +304,7 @@ class BartEncoder(nn.Module, LoggingMixin):
             else:
                 x, attn = encoder_layer(x, attention_mask)
             self.log_mem('encoder: called layer {i}', verbose=True)
+            self.save_log_csv('hf_fwd_logs.csv')
 
             if self.output_attentions:
                 all_attentions.append(attn)
