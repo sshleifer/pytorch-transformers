@@ -50,7 +50,8 @@ class MemoryTests(unittest.TestCase):
     def test_base_model_mem(self):
         model = BartModel.from_pretrained('bart-large').to(DEFAULT_DEVICE)
         model.reset_logs()
-        model(self.ids)
+        with torch.no_grad():
+            model(self.ids)
         log_df = model.combine_logs()
         log_df.to_csv('hf_batch_fwd_logs.csv')
         model.save_logs('hf_batch_fwd_logs.txt')
