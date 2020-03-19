@@ -185,6 +185,7 @@ def make_padding_mask(input_ids, padding_idx=1):
 
 
 # Helper Modules
+from durbango.torch_utils import get_shapes
 
 
 class EncoderLayer(nn.Module):
@@ -779,6 +780,9 @@ class BartModel(PretrainedBartModel):
     ):
 
         # make masks if user doesn't supply
+        if encoder_outputs is None:
+            encoder_outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
+        assert isinstance(encoder_outputs, tuple)
         if not generation_mode:
             decoder_input_ids, decoder_attention_mask = _prepare_bart_decoder_inputs(
                 self.config,
@@ -788,9 +792,6 @@ class BartModel(PretrainedBartModel):
                 mask_dtype=self.shared.weight.dtype,
             )
         assert decoder_input_ids is not None
-        if encoder_outputs is None:
-            encoder_outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
-        assert isinstance(encoder_outputs, tuple)
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         decoder_outputs = self.decoder(
             decoder_input_ids,
