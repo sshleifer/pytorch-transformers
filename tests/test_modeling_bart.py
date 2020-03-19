@@ -41,8 +41,6 @@ if is_torch_available():
         LARGE_NEGATIVE,
     )
     from transformers.tokenization_bart import BartTokenizer
-    from transformers import start_memory_tracing, stop_memory_tracing
-    from transformers.file_utils import MemoryViewer
 
 
 @require_torch
@@ -267,7 +265,6 @@ class BartHeadTests(unittest.TestCase):
         loss, logits, enc_features = lm_model(input_ids=context, decoder_input_ids=summary, lm_labels=summary)
         log_df = lm_model.combine_logs()
         tot = log_df.cpu_mem.max()-log_df.cpu_mem.min()
-        self.assertGreaterEqual(tot/1024**2, 3, )
 
     def test_generate_beam_search(self):
         input_ids = torch.Tensor([[71, 82, 2], [68, 34, 2]]).long().to(torch_device)
@@ -407,26 +404,7 @@ def _long_tensor(tok_lst):
 
 
 TOLERANCE = 1e-4
-DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-@require_torch
-class MemoryTests(unittest.TestCase):
 
-    @classmethod
-    def setUpClass(cls):
-        source_path = "test.source"
-        cls.lns = [" " + x.rstrip() for x in open(source_path).readlines()][:8]
-        tokenizer = BartTokenizer.from_pretrained('bart-large')
-        dct = tokenizer.batch_encode_plus(cls.lns, max_length=1024, return_tensors="pt", pad_to_max_length=True)
-        cls.ids = dct['input_ids'].to(DEFAULT_DEVICE)
-
-
-    def test_base_model_mem(self):
-        model = BartModel.from_pretrained('bart-large').to(DEFAULT_DEVICE)
-        model.log_mem('after init', verbose=True)
-        model.reset_logs()
-        model(self.ids)
-        log_df = model.combine_logs()
-        log_df.to_csv('hf_batch_fwd_logs.csv')
 
 @require_torch
 class BartModelIntegrationTests(unittest.TestCase):
