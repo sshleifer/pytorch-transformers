@@ -305,21 +305,12 @@ class BartEncoder(nn.Module, LoggingMixin):
             if self.training and (dropout_probability < self.layerdrop):  # skip the layer
                 attn = None
             else:
-                x, attn = encoder_layer(x, attention_mask)
+                x, _ = encoder_layer(x, attention_mask)
             assert len(encoder_states) == 0
             assert len(all_attentions) == 0
             #self.log_mem(f'x: {x.shape}, attn: {attn.shape}')
             self.log_mem(f'encoder: called layer {i}', verbose=True)
             self.save_logs('hf_fwd_logs.txt')
-
-            gc.collect()
-            torch.cuda.empty_cache()
-
-            if self.output_attentions:
-                all_attentions.append(attn)
-
-        if self.output_hidden_states:
-            encoder_states.append(x)
 
         encoder_states = [hidden_state.transpose(0, 1) for hidden_state in encoder_states]
         return x, encoder_states, all_attentions
