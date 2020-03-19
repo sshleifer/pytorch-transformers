@@ -23,7 +23,7 @@ from torch import Tensor, nn
 
 from .activations import ACT2FN
 from .configuration_bart import BartConfig
-from .file_utils import add_start_docstrings, add_start_docstrings_to_callable, collect_log_data, bytes_to_human_readable
+from .file_utils import add_start_docstrings, add_start_docstrings_to_callable
 from .modeling_utils import PreTrainedModel, create_position_ids_from_input_ids
 from durbango.logging_utils import LoggingMixin
 from durbango.torch_utils import print_tensor_sizes, local_sizeof, get_tensor_shapes_and_pointers
@@ -306,6 +306,8 @@ class BartEncoder(nn.Module, LoggingMixin):
                 x, attn = encoder_layer(x, attention_mask)
             self.log_mem(f'encoder: called layer {i}', verbose=True)
             self.save_logs('hf_fwd_logs.txt')
+            if i > 10:
+                rdd = print_tensor_sizes()
 
             if self.output_attentions:
                 all_attentions.append(attn)
