@@ -8,7 +8,7 @@ from transformers.modeling_bart import shift_tokens_right
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-
+@require_torch
 class TestHface(unittest.TestCase):
 
     @classmethod
@@ -30,32 +30,9 @@ class TestHface(unittest.TestCase):
             bart(self.ids)
         try:
             log_df = bart.combine_logs()
-            log_df.to_csv('hf_batch_fwd_logs.csv')
+            #log_df.to_csv('hf_batch_fwd_logs.csv')
             bart.save_logs('hf_batch_fwd_logs.txt')
             print(bart.summary)
         except AttributeError as e:
             print(e)
-
-@require_torch
-class MemoryTests(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        source_path = "test.source"
-        cls.lns = [" " + x.rstrip() for x in open(source_path).readlines()][:6]
-        tokenizer = BartTokenizer.from_pretrained('bart-large')
-        dct = tokenizer.batch_encode_plus(cls.lns, max_length=1024, return_tensors="pt", pad_to_max_length=True)
-        cls.ids = dct['input_ids'].to(DEFAULT_DEVICE)
-
-    def test_base_model_mem(self):
-        model = BartModel.from_pretrained('bart-large').to(DEFAULT_DEVICE)
-        model.reset_logs()
-        with torch.no_grad():
-            model(self.ids)
-        log_df = model.combine_logs()
-        log_df.to_csv('hf_batch_fwd_logs.csv')
-        model.save_logs('hf_batch_fwd_logs.txt')
-        print(model.summary)
-
-
 
