@@ -598,14 +598,17 @@ class SelfAttention(nn.Module, LoggingMixin):
                 "prev_value": v.view(bsz, self.num_heads, -1, self.head_dim),
                 "prev_key_padding_mask": key_padding_mask if not static_kv else None,
             }
+            self.log_mem('\t attn: done layer_state')
 
         assert k is not None
         src_len = k.size(1)
         attn_weights = torch.bmm(q, k.transpose(1, 2))
+        self.log_mem('\t attn: done BMM(q,k)')
         assert attn_weights.size() == (bsz * self.num_heads, tgt_len, src_len)
 
         if attn_mask is not None:
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len) + attn_mask
+            self.log_mem('\t attn: done causal mask')
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 
         # This is part of a workaround to get around fork/join parallelism not supporting Optional types.
@@ -617,15 +620,21 @@ class SelfAttention(nn.Module, LoggingMixin):
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
             reshaped = key_padding_mask.unsqueeze(1).unsqueeze(2)
             attn_weights = attn_weights.masked_fill(reshaped, float("-inf"))
+            self.log_mem('\t attn: done masked_fill')
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
         attn_weights = F.softmax(attn_weights, dim=-1)
+        self.log_mem('\t attn: done softmax')
         attn_probs = F.dropout(attn_weights, p=self.dropout, training=self.training,)
+
 
         assert v is not None
         attn_output = torch.bmm(attn_probs, v)
+        self.log_mem('\t attn: done BMM(probs, v)')
         assert attn_output.size() == (bsz * self.num_heads, tgt_len, self.head_dim)
         attn_output = attn_output.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim)
+        self.log_mem('\t attn: done view(output)')
         attn_output = self.out_proj(attn_output)
+        self.log_mem('\t attn: done out_proj')
         #attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
         return attn_output, None
 
