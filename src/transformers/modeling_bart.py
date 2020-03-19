@@ -309,7 +309,7 @@ class BartEncoder(nn.Module, LoggingMixin):
             assert len(encoder_states) == 0
             assert len(all_attentions) == 0
             #self.log_mem(f'x: {x.shape}, attn: {attn.shape}')
-            self.log_mem(f'encoder: called layer {i}', verbose=True)
+            self.log_mem(f'Encoder: called layer {i}', verbose=True)
             self.save_logs('hf_fwd_logs.txt')
 
         encoder_states = [hidden_state.transpose(0, 1) for hidden_state in encoder_states]
