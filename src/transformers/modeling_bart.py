@@ -293,6 +293,7 @@ class BartEncoder(nn.Module, LoggingMixin):
 
         encoder_states, all_attentions = [], []
         for i, encoder_layer in enumerate(self.layers):
+
             if self.output_hidden_states:
                 encoder_states.append(x)
             # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
@@ -301,7 +302,7 @@ class BartEncoder(nn.Module, LoggingMixin):
                 attn = None
             else:
                 x, attn = encoder_layer(x, attention_mask)
-            self.log_mem('encoder: called layer {i}')
+            self.log_mem('encoder: called layer {i}', verbose=True)
 
             if self.output_attentions:
                 all_attentions.append(attn)
@@ -615,7 +616,7 @@ class SelfAttention(nn.Module, LoggingMixin):
         attn_output = attn_output.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim)
         attn_output = self.out_proj(attn_output)
         #attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-        return attn_output, ()
+        return attn_output, attn_weights
 
     def _use_saved_state(self, k, v, saved_state, key_padding_mask, static_kv, bsz):
         # saved states are stored with shape (bsz, num_heads, seq_len, head_dim)
