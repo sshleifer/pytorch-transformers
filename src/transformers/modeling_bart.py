@@ -312,7 +312,7 @@ class BartEncoder(nn.Module, LoggingMixin):
             self.log_mem(f'encoder: called layer {i}', verbose=True)
             self.save_logs('hf_fwd_logs.txt')
 
-            if i > 10:
+            if i >= 8:
                 rdd = print_tensor_sizes()
                 rdd.to_csv(f'rdd_step_{i}.csv')
 
