@@ -288,7 +288,7 @@ class BartEncoder(nn.Module, LoggingMixin):
         x = inputs_embeds + self.embed_positions(input_ids)
         x = self.layernorm_embedding(x)
         x = F.dropout(x, p=self.dropout, training=self.training)
-        assert not self.output_attentions or self.output_hidden_states
+        assert not (self.output_attentions or self.output_hidden_states)
 
         # B x T x C -> T x B x C
         x = x.transpose(0, 1)
