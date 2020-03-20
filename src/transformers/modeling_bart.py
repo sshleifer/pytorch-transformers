@@ -926,11 +926,12 @@ class BartForConditionalGeneration(PretrainedBartModel):
         assert past is not None, "past has to be defined for encoder_outputs"
 
         # first step, decoder_cached_states are empty
-        if not past[1]:
-            encoder_outputs, decoder_cached_states = past, None
+        if not isinstance(past, tuple):
+            encoder_outputs, decoder_cached_states = (past, []), None
         else:
             encoder_outputs, decoder_cached_states = past
-
+        self.log_mem(f'encoder_outputs.shape: {encoder_outputs[0].shape}')
+        self.log_mem(f'decoder_input_ids.shape: {decoder_input_ids.shape}')
         return {
             "input_ids": None,  # encoder_outputs is defined. input_ids not needed
             "encoder_outputs": encoder_outputs,

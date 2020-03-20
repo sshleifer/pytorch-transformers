@@ -930,9 +930,13 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
                 device=next(self.parameters()).device,
             )
             cur_len = 1
+            new_order = torch.arange(effective_batch_size * num_beams).view(-1, 1).repeat(1, num_beams).view(-1)
+            new_order = new_order.to(input_ids.device)
+            encoder_outputs = encoder_outputs.index_select(1, new_order)
         else:
             encoder_outputs = None
             cur_len = input_ids.shape[-1]
+
 
         if num_beams > 1:
             output = self._generate_beam_search(
