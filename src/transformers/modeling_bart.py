@@ -568,13 +568,14 @@ class SelfAttention(nn.Module, LoggingMixin):
             k = self.k_proj(query)
             v = self.v_proj(query)
 
+
         q = self._shape(q, tgt_len, bsz)
-        self.log_mem('\tq_reshape')
+        self.log_mem(f'\tq_reshape -> {q.shape}')
         if k is not None:
             k = self._shape(k, -1, bsz)
         if v is not None:
             v = self._shape(v, -1, bsz)
-            self.log_mem('\t done reshaping k,v')
+        self.log_mem(f'\t done reshaping k,v ->, {k.shape}')
 
         if saved_state is not None:
             self.log_mem('\t about to use saved_state')
@@ -591,6 +592,7 @@ class SelfAttention(nn.Module, LoggingMixin):
 
         assert k is not None
         src_len = k.size(1)
+        self.log_mem('\t attn: before BMM(q,k)')
         attn_weights = torch.bmm(q, k.transpose(1, 2))
         self.log_mem('\t attn: done BMM(q,k)')
         assert attn_weights.size() == (bsz * self.num_heads, tgt_len, src_len)
@@ -607,8 +609,7 @@ class SelfAttention(nn.Module, LoggingMixin):
 
         if key_padding_mask is not None:  # shape (bsz, src_len)
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-            reshaped = key_padding_mask.unsqueeze(1).unsqueeze(2)
-            attn_weights = attn_weights.masked_fill(reshaped, float("-inf"))
+            attn_weights = attn_weights.masked_fill(key_padding_mask.unsqueeze(1).unsqueeze(2), float("-inf"))
             self.log_mem('\t attn: done masked_fill')
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
         attn_weights = F.softmax(attn_weights, dim=-1)
