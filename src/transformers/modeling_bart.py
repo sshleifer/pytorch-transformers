@@ -573,9 +573,10 @@ class SelfAttention(nn.Module, LoggingMixin):
         self.log_mem(f'\tq_reshape -> {q.shape}')
         if k is not None:
             k = self._shape(k, -1, bsz)
+            self.log_mem(f'\t done reshaping k,v ->, {k.shape}')
         if v is not None:
             v = self._shape(v, -1, bsz)
-        self.log_mem(f'\t done reshaping k,v ->, {k.shape}')
+
 
         if saved_state is not None:
             self.log_mem('\t about to use saved_state')
