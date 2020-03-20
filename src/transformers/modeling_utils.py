@@ -904,6 +904,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
             encoder = self.get_encoder()
 
             encoder_outputs = encoder(input_ids, attention_mask=attention_mask)
+            assert encoder_outputs[0].shape[1] == input_ids.shape[0]
 
         # Expand input ids if num_beams > 1 or num_return_sequences > 1
         if num_return_sequences > 1 or num_beams > 1:
@@ -930,9 +931,9 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
                 device=next(self.parameters()).device,
             )
             cur_len = 1
-            new_order = torch.arange(effective_batch_size * num_beams).view(-1, 1).repeat(1, num_beams).view(-1)
+            new_order = torch.arange(batch_size).view(-1, 1).repeat(1, num_beams* effective_batch_mult).view(-1)
             new_order = new_order.to(input_ids.device)
-            encoder_outputs = encoder_outputs.index_select(1, new_order)
+            encoder_outputs = (encoder_outputs[0].index_select(1, new_order), *encoder_outputs[1:])
         else:
             encoder_outputs = None
             cur_len = input_ids.shape[-1]
