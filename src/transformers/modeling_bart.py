@@ -929,7 +929,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
         if not past[1]:
             encoder_outputs, decoder_cached_states = past, None
             self.model.encoder.layers.cpu()
-            self.model.decoder.layer.cuda()
+            self.model.decoder.layers.cuda()
 
         else:
             encoder_outputs, decoder_cached_states = past
