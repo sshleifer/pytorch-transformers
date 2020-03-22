@@ -928,8 +928,10 @@ class BartForConditionalGeneration(PretrainedBartModel):
         # first step, decoder_cached_states are empty
         if not past[1]:
             encoder_outputs, decoder_cached_states = past, None
+            self.encoder.cpu()
         else:
             encoder_outputs, decoder_cached_states = past
+
         self.log_mem(f'encoder_outputs.shape: {encoder_outputs[0].shape}')
         self.log_mem(f'decoder_input_ids.shape: {decoder_input_ids.shape}')
         return {
