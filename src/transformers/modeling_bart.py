@@ -929,6 +929,8 @@ class BartForConditionalGeneration(PretrainedBartModel):
         if not past[1]:
             encoder_outputs, decoder_cached_states = past, None
             self.model.encoder.layers.cpu()
+            self.model.decoder.layer.cuda()
+
         else:
             encoder_outputs, decoder_cached_states = past
 
@@ -942,7 +944,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
         }
 
     def cleanup(self):
-        self.model.encoder.layers.to(next(self.parameters()).device)
+        self.model.encoder.layers.to(self.device)
     def prepare_scores_for_generation(self, scores, cur_len, max_length):
         if cur_len == 1:
             self._force_token_ids_generation(scores, self.config.bos_token_id)

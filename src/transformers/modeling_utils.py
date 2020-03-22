@@ -895,13 +895,14 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
         else:
             effective_batch_size = batch_size
             effective_batch_mult = 1
-
+        self.device = next(self.parameters()).device
         if self.config.is_encoder_decoder:
             assert bos_token_id is not None, "Encoder Decoder Models need to have a bos_token_id"
             assert hasattr(self, "get_encoder"), "{} should have a 'get_encoder' function defined".format(self)
             assert callable(self.get_encoder), "{} should be a method".format(self.get_encoder)
 
             # get encoder and store encoder outputs
+            self.model.decoder.layers.cpu()
             encoder = self.get_encoder()
 
             encoder_outputs = encoder(input_ids, attention_mask=attention_mask)
