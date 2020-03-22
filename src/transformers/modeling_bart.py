@@ -928,7 +928,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
         # first step, decoder_cached_states are empty
         if not past[1]:
             encoder_outputs, decoder_cached_states = past, None
-            self.model.encoder.cpu()
+            self.model.encoder.layers.cpu()
         else:
             encoder_outputs, decoder_cached_states = past
 
@@ -942,7 +942,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
         }
 
     def cleanup(self):
-        self.model.encoder.to(next(self.parameters()).device)
+        self.model.encoder.layers.to(next(self.parameters()).device)
     def prepare_scores_for_generation(self, scores, cur_len, max_length):
         if cur_len == 1:
             self._force_token_ids_generation(scores, self.config.bos_token_id)
@@ -959,8 +959,6 @@ class BartForConditionalGeneration(PretrainedBartModel):
             layer_past_new = {
                 attn_key: _reorder_buffer(attn_cache, beam_idx) for attn_key, attn_cache in layer_past.items()
             }
-            # reordered_layer_past = [layer_past[:, i].unsqueeze(1).clone().detach() for i in beam_idx]
-            # reordered_layer_past = torch.cat(reordered_layer_past, dim=1)
             reordered_past.append(layer_past_new)
         new_enc_out = enc_out if enc_out is None else enc_out.index_select(1, beam_idx)
         new_enc_mask = enc_mask if enc_mask is None else enc_mask.index_select(0, beam_idx)
