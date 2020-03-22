@@ -932,11 +932,9 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
                 device=next(self.parameters()).device,
             )
             cur_len = 1
-            self.log_mem('about to rearrange')
             assert batch_size == encoder_outputs[0].shape[1], "NEED MSG"
             expanded_index = torch.arange(batch_size).view(-1, 1).repeat(1, num_beams* effective_batch_mult).view(-1).to(input_ids.device)
             encoder_outputs = (encoder_outputs[0].index_select(1, expanded_index), *encoder_outputs[1:])
-            self.log_mem('done rearrange')
         else:
             encoder_outputs = None
             cur_len = input_ids.shape[-1]
@@ -987,9 +985,9 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
                 encoder_outputs=encoder_outputs,
                 attention_mask=attention_mask,
             )
-
+        self.cleanup()
         return output
-
+    def cleanup(self): pass
     def _generate_no_beam_search(
         self,
         input_ids,

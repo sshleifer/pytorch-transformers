@@ -928,12 +928,10 @@ class BartForConditionalGeneration(PretrainedBartModel):
         # first step, decoder_cached_states are empty
         if not past[1]:
             encoder_outputs, decoder_cached_states = past, None
-            self.encoder.cpu()
+            self.model.encoder.cpu()
         else:
             encoder_outputs, decoder_cached_states = past
 
-        self.log_mem(f'encoder_outputs.shape: {encoder_outputs[0].shape}')
-        self.log_mem(f'decoder_input_ids.shape: {decoder_input_ids.shape}')
         return {
             "input_ids": None,  # encoder_outputs is defined. input_ids not needed
             "encoder_outputs": encoder_outputs,
@@ -943,6 +941,8 @@ class BartForConditionalGeneration(PretrainedBartModel):
             "generation_mode": True,
         }
 
+    def cleanup(self):
+        self.model.encoder.to(next(self.parameters()).device)
     def prepare_scores_for_generation(self, scores, cur_len, max_length):
         if cur_len == 1:
             self._force_token_ids_generation(scores, self.config.bos_token_id)
