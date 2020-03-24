@@ -157,10 +157,10 @@ def start_memory_tracing(
 
     try:
         from py3nvml import py3nvml
-
         py3nvml.nvmlInit()
+
         devices = list(range(py3nvml.nvmlDeviceGetCount())) if gpus_to_trace is None else gpus_to_trace
-        py3nvml.nvmlShutdown()
+
     except ImportError:
         logger.warning(
             "py3nvml not installed, we won't log GPU memory usage. "
@@ -233,12 +233,11 @@ def start_memory_tracing(
                 tf_context.context()._clear_caches()  # See https://github.com/tensorflow/tensorflow/issues/20218#issuecomment-416771802
 
             # Sum used memory for all GPUs
-            py3nvml.nvmlInit()
+            #py3nvml.nvmlInit()
             for i in devices:
                 handle = py3nvml.nvmlDeviceGetHandleByIndex(i)
                 meminfo = py3nvml.nvmlDeviceGetMemoryInfo(handle)
                 gpu_mem += meminfo.used
-            py3nvml.nvmlShutdown()
 
         mem_state = UsedMemoryState(traced_state, cpu_mem, gpu_mem)
         memory_trace.append(mem_state)
@@ -292,6 +291,12 @@ def stop_memory_tracing(
     """
     global _is_memory_tracing_enabled
     _is_memory_tracing_enabled = False
+    try:
+        from py3nvml import py3nvml
+        py3nvml.nvmlShutdown()
+    except Exception:
+        pass
+
 
     if memory_trace is not None and len(memory_trace) > 1:
         memory_diff_trace = []

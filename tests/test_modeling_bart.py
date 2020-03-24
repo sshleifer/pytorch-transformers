@@ -278,7 +278,10 @@ class BartHeadTests(unittest.TestCase):
             pad_token_id=1,
             bos_token_id=0,
         )
+        from transformers.benchmark_utils import start_memory_tracing, stop_memory_tracing
+        start_memory_tracing()
         lm_model = BartForConditionalGeneration(config).to(torch_device)
+
         lm_model.eval()
 
         max_length = 5
@@ -290,6 +293,8 @@ class BartHeadTests(unittest.TestCase):
             no_repeat_ngram_size=3,
             max_length=max_length,
         )
+        summary = stop_memory_tracing()
+        import ipdb; ipdb.set_trace()
         self.assertEqual(new_input_ids.shape, (input_ids.shape[0], max_length))
         # TODO(SS): uneven length batches, empty inputs
 
