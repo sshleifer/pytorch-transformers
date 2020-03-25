@@ -24,6 +24,7 @@ from .test_modeling_common import ModelTesterMixin, ids_tensor
 from .utils import CACHE_DIR, require_torch, slow, torch_device
 
 
+
 if is_torch_available():
     import torch
     from transformers import (
@@ -242,6 +243,7 @@ class BartHeadTests(unittest.TestCase):
         self.assertEqual(logits.shape, expected_shape)
         self.assertIsInstance(loss.item(), float)
 
+
     def test_lm_uneven_forward(self):
         config = BartConfig(
             vocab_size=self.vocab_size,
@@ -255,11 +257,12 @@ class BartHeadTests(unittest.TestCase):
             max_position_embeddings=48,
         )
         lm_model = BartForConditionalGeneration(config).to(torch_device)
+        lm_model.log_mem('starting')
         context = torch.Tensor([[71, 82, 18, 33, 46, 91, 2], [68, 34, 26, 58, 30, 2, 1]]).long().to(torch_device)
         summary = torch.Tensor([[82, 71, 82, 18, 2], [58, 68, 2, 1, 1]]).long().to(torch_device)
         loss, logits, enc_features = lm_model(input_ids=context, decoder_input_ids=summary, lm_labels=summary)
-        expected_shape = (*summary.shape, config.vocab_size)
-        self.assertEqual(logits.shape, expected_shape)
+        log_df = lm_model.combine_logs()
+        tot = log_df.cpu_mem.max()-log_df.cpu_mem.min()
 
     def test_generate_beam_search(self):
         input_ids = torch.Tensor([[71, 82, 2], [68, 34, 2]]).long().to(torch_device)
@@ -282,6 +285,7 @@ class BartHeadTests(unittest.TestCase):
         lm_model.eval()
 
         max_length = 5
+
         new_input_ids = lm_model.generate(
             input_ids.clone(),
             do_sample=True,
@@ -294,6 +298,7 @@ class BartHeadTests(unittest.TestCase):
         # TODO(SS): uneven length batches, empty inputs
 
     def test_shift_tokens_right(self):
+
         input_ids = torch.Tensor([[71, 82, 18, 33, 2, 1, 1], [68, 34, 26, 58, 30, 82, 2]]).long()
         shifted = shift_tokens_right(input_ids, 1)
         n_pad_before = input_ids.eq(1).float().sum()
@@ -319,7 +324,12 @@ class BartHeadTests(unittest.TestCase):
         config, input_ids, batch_size = self._get_config_and_data(output_past=True)
         attention_mask = input_ids.ne(1).to(torch_device)
         model = BartForConditionalGeneration(config).eval().to(torch_device).half()
+        #trace = start_memory_tracing(modules_to_trace="transformers")
         model.generate(input_ids, attention_mask=attention_mask, do_sample=False, early_stopping=True)
+        #summary = MemoryViewer(stop_memory_tracing(trace))
+        #summary.save_line_by_line('hf_mem_half_gen.txt')
+
+
 
     @unittest.skipIf(torch_device == "cpu", "Cant do half precision")
     def test_base_model_fp16(self):
@@ -415,14 +425,13 @@ class BartModelIntegrationTests(unittest.TestCase):
 
         example_b = [0, 31414, 232, 328, 740, 1140, 69, 46078, 1588, 2, 1]
         input_ids = _long_tensor([[0, 31414, 232, 328, 740, 1140, 12695, 69, 46078, 1588, 2], example_b])
-
-        model = AutoModelForSequenceClassification.from_pretrained("bart-large-mnli").to(
-            torch_device
-        )  # eval called in from_pre
+        model = AutoModelForSequenceClassification.from_pretrained("bart-large-mnli").to(torch_device)
         inputs_dict = prepare_bart_inputs_dict(model.config, input_ids)
         # Test that model hasn't changed
+        #trace = start_memory_tracing(modules_to_trace="transformers")
+
         with torch.no_grad():
-            batched_logits, features = model(**inputs_dict)
+            batched_logits, features = model.forward(**inputs_dict)
         expected_shape = torch.Size((2, 3))
         self.assertEqual(batched_logits.shape, expected_shape)
         expected_slice = torch.Tensor([[0.1907, 1.4342, -1.0289]]).to(torch_device)
@@ -445,7 +454,37 @@ class BartModelIntegrationTests(unittest.TestCase):
             self.assertIsNotNone(model)
 
     @slow
-    def test_cnn_summarization_same_as_fairseq(self):
+    def test_compare_generation_mem(self):
+        hf = BartForConditionalGeneration.from_pretrained("bart-large-cnn", output_past=True,).to(torch_device)
+        if torch_device == 'cuda':
+            hf = hf.half()
+        tok = BartTokenizer.from_pretrained("bart-large")
+        text = " (CNN)The Palestinian Authority officially became the 123rd member of the International Criminal Court on Wednesday, a step that gives the court jurisdiction over alleged crimes in Palestinian"
+        tokens = tok.encode(text, return_tensors="pt").to(torch_device)
+
+    @slow
+    def test_cnn_easy_summarization_same_as_fairseq(self):
+        hf = BartForConditionalGeneration.from_pretrained("bart-large-cnn", output_past=True,).to(torch_device)
+        if torch_device == 'cuda':
+            hf = hf.half()
+        tok = BartTokenizer.from_pretrained("bart-large")
+        text = " (CNN)The Palestinian Authority officially became the 123rd member of the International Criminal Court on Wednesday, a step that gives the court jurisdiction over alleged crimes in Palestinian"
+        tokens = tok.encode(text, return_tensors="pt").to(torch_device)
+        extra_len = 20
+
+        gen_tokens = hf.generate(
+            tokens,
+            num_beams=4,
+            max_length=extra_len + 2,
+            do_sample=False,
+            decoder_start_token_id=hf.config.eos_token_ids[0],
+        )  # repetition_penalty=10.,
+        expected_result = "<s>The Palestinian Authority officially became the 123rd member of the International Criminal Court on Wednesday."
+        generated = [tok.decode(g,) for g in gen_tokens]
+        self.assertEqual(expected_result, generated[0])
+
+    @slow
+    def test_cnn_summarization_same_as_fairseq_hard(self):
         hf = BartForConditionalGeneration.from_pretrained("bart-large-cnn", output_past=True,).to(torch_device)
         tok = BartTokenizer.from_pretrained("bart-large")
 
