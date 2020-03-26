@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """PyTorch BERT model."""
-
+from pathlib import Path
 import logging
 import os
 import typing
@@ -320,10 +320,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
         """ Save a model and its configuration file to a directory, so that it
             can be re-loaded using the `:func:`~transformers.PreTrainedModel.from_pretrained`` class method.
         """
-        assert os.path.isdir(
-            save_directory
-        ), "Saving path should be a directory where the model and configuration can be saved"
-
+        Path(save_directory).mkdir(exist_ok=True)
         # Only save the model itself if we are using distributed training
         model_to_save = self.module if hasattr(self, "module") else self
 
