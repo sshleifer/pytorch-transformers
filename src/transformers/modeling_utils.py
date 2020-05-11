@@ -1341,16 +1341,14 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
 
             if temperature != 1.0:
                 next_token_logits = next_token_logits / temperature
-            next_token_logits = self.hack_before_log_softmax(next_token_logits)
-            scores = F.log_softmax(next_token_logits, dim=-1)  # (batch_size * num_beams, vocab_size)
 
             if self.config.is_encoder_decoder and do_sample is False:
                 # TODO (PVP) still a bit hacky here - there might be a better solution
-                scores = self.prepare_scores_for_generation(scores, cur_len=cur_len, max_length=max_length)
+                next_token_logits = self.prepare_scores_for_generation(next_token_logits, cur_len=cur_len, max_length=max_length)
 
             # set eos token prob to zero if min_length is not reached
             if eos_token_id is not None and cur_len < min_length:
-                scores[:, eos_token_id] = -float("inf")
+                next_token_logits[:, eos_token_id] = -float("inf")
 
             if no_repeat_ngram_size > 0:
                 # calculate a list of banned tokens to prevent repetitively generating the same ngrams
@@ -1360,15 +1358,16 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
                     input_ids, num_batch_hypotheses, no_repeat_ngram_size, cur_len
                 )
                 for i, banned_tokens in enumerate(banned_batch_tokens):
-                    scores[i, banned_tokens] = -float("inf")
+                    next_token_logits[i, banned_tokens] = -float("inf")
 
             if bad_words_ids is not None:
                 # calculate a list of banned tokens according to bad words
                 banned_tokens = calc_banned_bad_words_ids(input_ids, bad_words_ids)
 
                 for i, banned_tokens in enumerate(banned_tokens):
-                    scores[i, banned_tokens] = -float("inf")
+                    next_token_logits[i, banned_tokens] = -float("inf")
 
+            scores = F.log_softmax(next_token_logits, dim=-1)  # (batch_size * num_beams, vocab_size)
             assert scores.shape == (batch_size * num_beams, vocab_size), "Shapes of scores: {} != {}".format(
                 scores.shape, (batch_size * num_beams, vocab_size)
             )
@@ -1547,9 +1546,6 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
     @staticmethod
     def _reorder_cache(past: Tuple, beam_idx: Tensor) -> Tuple[Tensor]:
         return tuple(layer_past.index_select(1, beam_idx) for layer_past in past)
-
-    def hack_before_log_softmax(self, next_token_logits):
-        return next_token_logits
 
 
 def calc_banned_ngram_tokens(prev_input_ids: Tensor, num_hypos: int, no_repeat_ngram_size: int, cur_len: int) -> None:

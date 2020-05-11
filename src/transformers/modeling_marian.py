@@ -47,7 +47,3 @@ class MarianMTModel(BartForConditionalGeneration):
         if cur_len == max_length - 1 and self.config.eos_token_id is not None:
             self._force_token_ids_generation(scores, self.config.eos_token_id)
         return scores
-
-    def hack_before_log_softmax(self, next_token_logits):
-        next_token_logits[:, self.config.pad_token_id] = float('-inf')
-        return next_token_logits
