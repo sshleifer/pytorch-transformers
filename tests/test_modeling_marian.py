@@ -187,7 +187,7 @@ class TestMarian_RU_FR(MarianIntegrationTest):
     src = "ru"
     tgt = "fr"
     src_text = ["Он показал мне рукопись своей новой пьесы."]
-    expected_text = ["Il m'a montré un manuscrit de sa nouvelle pièce."]
+    expected_text = ["Il m'a montré le manuscrit de sa nouvelle pièce."]
 
     @slow
     def test_batch_generation_ru_fr(self):
