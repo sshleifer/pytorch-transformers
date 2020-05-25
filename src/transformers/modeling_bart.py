@@ -27,7 +27,7 @@ from .activations import ACT2FN
 from .configuration_bart import BartConfig
 from .file_utils import add_start_docstrings, add_start_docstrings_to_callable
 from .modeling_utils import PreTrainedModel, create_position_ids_from_input_ids
-
+from durbango import LoggingMixin
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +115,7 @@ def _prepare_bart_decoder_inputs(
     return decoder_input_ids, decoder_padding_mask, causal_mask
 
 
-class PretrainedBartModel(PreTrainedModel):
+class PretrainedBartModel(PreTrainedModel, LoggingMixin):
     config_class = BartConfig
     base_model_prefix = "model"
     pretrained_model_archive_map = BART_PRETRAINED_MODEL_ARCHIVE_MAP
@@ -177,7 +177,7 @@ def make_padding_mask(input_ids, padding_idx=1):
 # Helper Modules
 
 
-class EncoderLayer(nn.Module):
+class EncoderLayer(nn.Module, LoggingMixin):
     def __init__(self, config: BartConfig):
         super().__init__()
         self.embed_dim = config.d_model
@@ -230,7 +230,7 @@ class EncoderLayer(nn.Module):
         return x, attn_weights
 
 
-class BartEncoder(nn.Module):
+class BartEncoder(nn.Module, LoggingMixin):
     """
     Transformer encoder consisting of *config.encoder_layers* self attention layers. Each layer
     is a :class:`EncoderLayer`.
@@ -323,7 +323,7 @@ class BartEncoder(nn.Module):
         return x, encoder_states, all_attentions
 
 
-class DecoderLayer(nn.Module):
+class DecoderLayer(nn.Module, LoggingMixin):
     def __init__(self, config: BartConfig):
         super().__init__()
         self.embed_dim = config.d_model
@@ -412,7 +412,7 @@ class DecoderLayer(nn.Module):
         )  # just self_attn weights for now, following t5, layer_state = cache for decoding
 
 
-class BartDecoder(nn.Module):
+class BartDecoder(nn.Module, LoggingMixin):
     """
     Transformer decoder consisting of *config.decoder_layers* layers. Each layer
     is a :class:`DecoderLayer`.
@@ -545,7 +545,7 @@ def _reorder_buffer(attn_cache, new_order):
     return attn_cache
 
 
-class SelfAttention(nn.Module):
+class SelfAttention(nn.Module, LoggingMixin):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
     def __init__(
@@ -834,6 +834,7 @@ class BartModel(PretrainedBartModel):
         assert decoder_input_ids is not None
         if encoder_outputs is None:
             encoder_outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
+            self.log_mem('run encoder')
         assert isinstance(encoder_outputs, tuple)
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         decoder_outputs = self.decoder(
@@ -845,6 +846,7 @@ class BartModel(PretrainedBartModel):
             decoder_cached_states=decoder_cached_states,
             use_cache=use_cache,
         )
+        self.log_mem('run decoder')
         # Attention and hidden_states will be [] or None if they aren't needed
         decoder_outputs: Tuple = _filter_out_falsey_values(decoder_outputs)
         assert isinstance(decoder_outputs[0], torch.Tensor)
@@ -945,6 +947,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
             tokenizer.decode(predictions).split()
             # ['good', 'great', 'all', 'really', 'very']
         """
+        self.log_mem('start')
         outputs = self.model(
             input_ids,
             attention_mask=attention_mask,
@@ -956,12 +959,13 @@ class BartForConditionalGeneration(PretrainedBartModel):
         )
         lm_logits = F.linear(outputs[0], self.model.shared.weight, bias=self.final_logits_bias)
         outputs = (lm_logits,) + outputs[1:]  # Add cache, hidden states and attention if they are here
+        self.log_mem('logits')
         if lm_labels is not None:
             loss_fct = nn.CrossEntropyLoss()
             # TODO(SS): do we need to ignore pad tokens in lm_labels?
             masked_lm_loss = loss_fct(lm_logits.view(-1, self.config.vocab_size), lm_labels.view(-1))
             outputs = (masked_lm_loss,) + outputs
-
+            self.log_mem('loss')
         return outputs
 
     def prepare_inputs_for_generation(self, decoder_input_ids, past, attention_mask, use_cache, **kwargs):

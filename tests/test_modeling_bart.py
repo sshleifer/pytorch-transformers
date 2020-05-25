@@ -464,6 +464,7 @@ class BartHeadTests(unittest.TestCase):
         config, *_ = self._get_config_and_data()
         model = BartForConditionalGeneration(config).eval().to(torch_device)
         model(**model.dummy_inputs)
+        model.log_df
 
     def test_prepare_bart_decoder_inputs(self):
         config, *_ = self._get_config_and_data()
