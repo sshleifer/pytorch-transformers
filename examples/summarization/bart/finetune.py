@@ -397,6 +397,7 @@ BART_LARGE_N_LAYERS = 12
 
 class SummarizationDistiller(SummarizationTrainer):
     loss_names = ["loss", "ce_loss", "mlm_loss", "enc_mse_loss"]
+    t0 = None
 
     def __init__(self, hparams):
         assert Path(hparams.data_dir).exists()
@@ -465,6 +466,14 @@ class SummarizationDistiller(SummarizationTrainer):
 
     def _step(self, batch):
         # assert is_frozen(self.teacher)
+        import time
+
+        import ipdb;
+        if self.t0 is not None:
+            t_loop = time.time() - self.t0
+            print(f't_loop: {t_loop: .4f}')
+            import ipdb; ipdb.set_trace()
+        self.t0 = time.time()
         pad_token_id = self.tokenizer.pad_token_id
         source_ids, source_mask, y = batch["input_ids"], batch["attention_mask"], batch["decoder_input_ids"]
         y_ids = y[:, :-1].contiguous()
@@ -494,6 +503,9 @@ class SummarizationDistiller(SummarizationTrainer):
         blended_loss = (
             loss_ce * self.alpha_ce + self.alpha_mlm * sloss + self.hparams.alpha_encoder_loss * loss_encoder
         )
+        print(f't_fwd: {time.time() - self.t0: .4f}')
+
+
         return blended_loss, loss_ce, sloss, loss_encoder
 
     def calc_mse_loss(self, teacher_outputs: torch.Tensor, student_outputs: torch.Tensor, mask) -> torch.FloatTensor:
