@@ -75,6 +75,7 @@ def calculate_rouge(output_lns: List[str], reference_lns: List[str]) -> Dict:
 class SummarizationTrainer(BaseTransformer):
     mode = "language-modeling"
     loss_names = ["loss"]
+    t0 = None
 
     def __init__(self, hparams, **kwargs):
         tokenizer = BartTokenizer.from_pretrained("facebook/bart-large")
@@ -132,14 +133,22 @@ class SummarizationTrainer(BaseTransformer):
         )
 
     def _step(self, batch: dict) -> Tuple:
+
         pad_token_id = self.tokenizer.pad_token_id
         source_ids, source_mask, y = batch["input_ids"], batch["attention_mask"], batch["decoder_input_ids"]
+        if self.t0 is not None:
+            t_loop = time.time() - self.t0
+            print(f't_loop: {t_loop: .4f}')
+            import ipdb; ipdb.set_trace()
+        self.t0 = time.time()
         y_ids = y[:, :-1].contiguous()
         lm_labels = y[:, 1:].clone()
         lm_labels[y[:, 1:] == pad_token_id] = -100
         outputs = self(source_ids, attention_mask=source_mask, decoder_input_ids=y_ids, lm_labels=lm_labels,)
 
         loss = outputs[0]
+        print(f't_fwd: {time.time() - self.t0: .4f}')
+
 
         return (loss,)
 
@@ -397,7 +406,7 @@ BART_LARGE_N_LAYERS = 12
 
 class SummarizationDistiller(SummarizationTrainer):
     loss_names = ["loss", "ce_loss", "mlm_loss", "enc_mse_loss"]
-    t0 = None
+
 
     def __init__(self, hparams):
         assert Path(hparams.data_dir).exists()
