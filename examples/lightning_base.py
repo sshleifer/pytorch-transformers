@@ -324,10 +324,7 @@ def generic_train(model: BaseTransformer, args: argparse.Namespace, extra_callba
         logger = WandbLogger(name=model.output_dir.name)
         logger.log_hyperparams(args)
 
-    checkpoint_callback = ModelCheckpoint(
-        filepath=str(model.output_dir / "{epoch}-{val_avg_rouge2:.4f}"), monitor="val_loss", mode="min", save_top_k=1,
-        save_weights_only=True,
-    )
+
 
     train_params = dict(
         accumulate_grad_batches=args.gradient_accumulation_steps,
@@ -335,8 +332,8 @@ def generic_train(model: BaseTransformer, args: argparse.Namespace, extra_callba
         max_epochs=args.num_train_epochs,
         early_stop_callback=extra_train_kwargs.get("early_stop_callback", False),
         gradient_clip_val=args.max_grad_norm,
-        checkpoint_callback=checkpoint_callback,
         callbacks=[LoggingCallback()] + extra_callbacks,
+        checkpoint_callback=False,
         fast_dev_run=args.fast_dev_run,
         val_check_interval=args.val_check_interval,
         logger=logger,

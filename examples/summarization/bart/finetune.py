@@ -709,7 +709,7 @@ def eval_and_fix(args):
         module_cls = SummarizationDistiller
 
     model: BaseTransformer = module_cls(args)
-    trainer: pl.Trainer = generic_train(model, args, early_stopping_callback=True)
+    trainer: pl.Trainer = generic_train(model, args)
     trainer.test(model)
 
 
