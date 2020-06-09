@@ -733,6 +733,7 @@ def main(args):
         #                                   #hparams_file=str(model.output_dir/'hparams.pkl')
         #                                   )
         trainer.resume_from_checkpoint = checkpoints[-1]
+        trainer.checkpoint_callback.best_model_path
     trainer.logger.log_hyperparams(model.hparams)
     trainer.test(model)
     return model
