@@ -225,8 +225,6 @@ class BaseTransformer(pl.LightningModule):
         parser.add_argument("--eval_batch_size", default=8, type=int)
         parser.add_argument("--val_check_interval", default=1.0, type=float)
 
-        # parser.add_argument("--eval_batch_size", default=32, type=int)
-
     @rank_zero_only
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         save_path = self.output_dir.joinpath('best_tfmr')
@@ -379,7 +377,7 @@ def generic_train(
         args.output_dir.startswith("/var/")
         or args.fast_dev_run
         or args.output_dir.startswith("/tmp/")
-        or args.gpus > 1  # should be fixed in pl 0.8 June 12th
+        #or args.gpus > 1  # should be fixed in pl 0.8 June 12th
     ):
         logger = True
     else:
