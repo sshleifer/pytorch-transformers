@@ -1688,9 +1688,9 @@ def top_k_top_p_filtering(
         logits[indices_to_remove] = filter_value
     return logits
 
-
-class BeamHypotheses(object):
-    def __init__(self, num_beams, max_length, length_penalty, early_stopping):
+import pandas as pd
+class BeamHypotheses:
+    def __init__(self, num_beams:int, max_length: int, length_penalty: float, early_stopping: bool):
         """
         Initialize n-best list of hypotheses.
         """
@@ -1698,8 +1698,9 @@ class BeamHypotheses(object):
         self.length_penalty = length_penalty
         self.early_stopping = early_stopping
         self.num_beams = num_beams
-        self.beams = []
+        self.beams: List[Tuple] = []
         self.worst_score = 1e9
+        self.logs = []
 
     def __len__(self):
         """
@@ -1707,11 +1708,16 @@ class BeamHypotheses(object):
         """
         return len(self.beams)
 
+    @property
+    def log_df(self):
+        return pd.DataFrame(self.logs, columns=['raw_score', 'len', 'adjustment', 'adj_score'])
+        
     def add(self, hyp, sum_logprobs):
         """
         Add a new hypothesis to the list.
         """
         score = sum_logprobs / len(hyp) ** self.length_penalty
+        self.logs.append([sum_logprobs, len(hyp), len(hyp) ** self.length_penalty, score])
         if len(self) < self.num_beams or score > self.worst_score:
             self.beams.append((score, hyp))
             if len(self) > self.num_beams:
@@ -1721,7 +1727,7 @@ class BeamHypotheses(object):
             else:
                 self.worst_score = min(score, self.worst_score)
 
-    def is_done(self, best_sum_logprobs, cur_len=None):
+    def is_done(self, best_sum_logprobs, cur_len=None) -> bool:
         """
         If there are enough hypotheses and that none of the hypotheses being generated
         can become better than the worst one in the heap, then we are done with this sentence.
