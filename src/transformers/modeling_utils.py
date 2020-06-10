@@ -1556,9 +1556,11 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
         # select the best hypotheses
         sent_lengths = input_ids.new(output_batch_size)
         best = []
-
+        hypo_dfs = []
         # retrieve best hypotheses
         for i, hypotheses in enumerate(generated_hyps):
+
+            hypo_dfs.append(hypotheses.log_df.assign(hypo_id=i))
             sorted_hyps = sorted(hypotheses.beams, key=lambda x: x[0])
             for j in range(output_num_return_sequences_per_batch):
                 effective_batch_idx = output_num_return_sequences_per_batch * i + j
@@ -1581,8 +1583,8 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
             # none of the hypotheses have an eos_token
             assert (len(hypo) == max_length for hypo in best)
             decoded = torch.stack(best).type(torch.long).to(next(self.parameters()).device)
-
-        return decoded
+        hypo_df = pd.concat(hypo_dfs)
+        return decoded, hypo_df
 
     @staticmethod
     def _reorder_cache(past: Tuple, beam_idx: Tensor) -> Tuple[Tensor]:
@@ -1710,23 +1712,28 @@ class BeamHypotheses:
 
     @property
     def log_df(self):
-        return pd.DataFrame(self.logs, columns=['raw_score', 'len', 'adjustment', 'adj_score'])
+        return pd.DataFrame(self.logs, columns=['raw_score', 'len', 'adjustment', 'adj_score', 'worst_score', 'is_early', 'good_score'])
         
     def add(self, hyp, sum_logprobs):
         """
         Add a new hypothesis to the list.
         """
         score = sum_logprobs / len(hyp) ** self.length_penalty
-        self.logs.append([sum_logprobs, len(hyp), len(hyp) ** self.length_penalty, score])
+        not_enough = len(self) < self.num_beams
+        good_score = score > self.worst_score
+        worst_score = self.worst_score
         if len(self) < self.num_beams or score > self.worst_score:
-            self.beams.append((score, hyp))
-            if len(self) > self.num_beams:
+            self.beams.append((score, hyp))  # geq+leq bug?
+            if len(self) > self.num_beams:  # evict
                 sorted_scores = sorted([(s, idx) for idx, (s, _) in enumerate(self.beams)])
                 del self.beams[sorted_scores[0][1]]
                 self.worst_score = sorted_scores[1][0]
             else:
                 self.worst_score = min(score, self.worst_score)
-
+        self.logs.append([
+            sum_logprobs, len(hyp), len(hyp) ** self.length_penalty, score,
+            worst_score, not_enough, good_score
+                          ])
     def is_done(self, best_sum_logprobs, cur_len=None) -> bool:
         """
         If there are enough hypotheses and that none of the hypotheses being generated
