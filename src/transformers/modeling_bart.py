@@ -963,7 +963,6 @@ class BartForConditionalGeneration(PretrainedBartModel):
 
         return outputs
 
-
     @property
     def decoder(self):
         return self.model.decoder

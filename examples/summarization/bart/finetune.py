@@ -22,7 +22,14 @@ from torch.utils.data import DataLoader
 
 from durbango import lmap, pickle_load, pickle_save
 from lightning_base import BaseTransformer, add_generic_args, generic_train, get_linear_schedule_with_warmup
-from transformers import AutoModelWithLMHead, AutoConfig, T5Config, T5ForConditionalGeneration, BartConfig, BartForConditionalGeneration
+from transformers import (
+    AutoConfig,
+    AutoModelWithLMHead,
+    BartConfig,
+    BartForConditionalGeneration,
+    T5Config,
+    T5ForConditionalGeneration,
+)
 from transformers.modeling_bart import invert_mask
 from transformers.optimization import AdamW
 
@@ -77,19 +84,25 @@ def calculate_rouge(output_lns: List[str], reference_lns: List[str], all_stats=F
 def dictify(rouge_obj) -> List:
     records = []
     for k, rouge_measurement in rouge_obj.items():
-        if k == 'rouge1': continue
-        for k1 in ['low', 'mid', 'high']:
-            if k1 != 'mid': continue
+        if k == "rouge1":
+            continue
+        for k1 in ["low", "mid", "high"]:
+            if k1 != "mid":
+                continue
             v1 = getattr(rouge_measurement, k1)
-            for k2 in ['precision', 'recall', 'fmeasure']:
+            for k2 in ["precision", "recall", "fmeasure"]:
                 records.append([k, k1, k2, getattr(v1, k2)])
 
     return records
 
 
 def expanded_rouge_df(rouge_all) -> pd.DataFrame:
-    return pd.DataFrame(dictify(rouge_all), columns=['metric', 'k1', 'k2', 'val']).set_index(['metric', 'k2'])[
-        'val'].unstack('metric').rename_axis(None)
+    return (
+        pd.DataFrame(dictify(rouge_all), columns=["metric", "k1", "k2", "val"])
+        .set_index(["metric", "k2"])["val"]
+        .unstack("metric")
+        .rename_axis(None)
+    )
 
 
 class SummarizationTrainer(BaseTransformer):
@@ -98,7 +111,7 @@ class SummarizationTrainer(BaseTransformer):
 
     @property
     def is_t5(self):
-        return self.model.config.model_type == 't5'
+        return self.model.config.model_type == "t5"
 
     def __init__(self, hparams, **kwargs):
         super().__init__(hparams, num_labels=None, mode=self.mode, **kwargs)
@@ -488,7 +501,7 @@ class SummarizationDistiller(SummarizationTrainer):
         return d_layers_to_copy, student, student_cfg, teacher
 
     def copy_to_student(self, d_layers_to_copy, e_layers_to_copy, hparams, student, teacher):
-        if teacher.config.model_type == 't5':
+        if teacher.config.model_type == "t5":
             return self.copy_t5_to_student(d_layers_to_copy, e_layers_to_copy, hparams, student, teacher)
         self.different_encoder: bool = hparams.student_encoder_layers != teacher.config.encoder_layers
         self.different_decoder = hparams.student_decoder_layers != teacher.config.decoder_layers
@@ -635,7 +648,6 @@ class SummarizationDistiller(SummarizationTrainer):
         return parser
 
 
-
 class EncoderDistiller(SummarizationDistiller):
     loss_names = ["loss"]
 
@@ -658,6 +670,7 @@ class EncoderDistiller(SummarizationDistiller):
             teacher_enc_outputs = self.teacher_enc(source_ids, attention_mask=source_mask)
         loss_encoder = self.calc_mse_loss(enc_outputs[0], teacher_enc_outputs[0], source_mask)
         return (loss_encoder,)
+
 
 class BrewerDistiller(SummarizationDistiller):
     loss_names = ["loss", "ce_loss", "mlm_loss", "enc_mse_loss", "hid_loss_enc", "hid_loss_dec"]
@@ -732,14 +745,13 @@ class BrewerDistiller(SummarizationDistiller):
 
 
 class T5BrewerDistiller(BrewerDistiller):
-
     def pre_init(self, hparams):
         teacher = T5ForConditionalGeneration.from_pretrained(hparams.teacher, **self.teacher_kwargs).eval()
         n_layer = hparams.student_decoder_layers
         assert n_layer == hparams.student_encoder_layers  # TODO(SS): relax this
         d_layers_to_copy = get_layers_to_copy(n_layer, len(teacher.decoder.block))
         e_layers_to_copy: List = get_layers_to_copy(n_layer, len(teacher.encoder.block))
-        student_updates = {'num_layers': n_layer}
+        student_updates = {"num_layers": n_layer}
         student_updates.update(self.teacher_kwargs)
         hparams.layer_to_copy = d_layers_to_copy
         hparams.e_layer_to_copy = e_layers_to_copy
@@ -774,6 +786,7 @@ class T5BrewerDistiller(BrewerDistiller):
         else:
             freeze_part(self.model.decoder)  # TODO(SS): very suspicious
 
+
 def main(args):
     Path(args.output_dir).mkdir(exist_ok=True)
     if len(os.listdir(args.output_dir)) > 3 and args.do_train:
@@ -783,13 +796,13 @@ def main(args):
     trainer: pl.Trainer = generic_train(model, args, early_stopping_callback=True)
     if not args.do_predict:
         return model
-    #return model  # hack
+    # return model  # hack
 
     model.hparams.test_checkpoint = ""
     checkpoints = list(sorted(glob.glob(os.path.join(args.output_dir, "*.ckpt"), recursive=True)))
     if checkpoints:
         model.hparams.test_checkpoint = checkpoints[-1]
-        #model = model.load_from_checkpoint(checkpoints[-1],
+        # model = model.load_from_checkpoint(checkpoints[-1],
         #                                   #hparams_file=str(model.output_dir/'hparams.pkl')
         #                                   )
         trainer.resume_from_checkpoint = checkpoints[-1]
@@ -799,7 +812,7 @@ def main(args):
 
 
 def create_module(args) -> BaseTransformer:
-    t5 = 't5' in args.model_name_or_path
+    t5 = "t5" in args.model_name_or_path
     if args.no_teacher:
         assert not args.enc_only
         module_cls = SummarizationTrainer
@@ -827,21 +840,20 @@ def evaluate_checkpoint(ckpt_path: Path, dest_dir=None):
     exp_dir = ckpt_path.parent
     if dest_dir is None:
         dest_dir = exp_dir
-    clash = list(dest_dir.glob('test_generations*'))
+    clash = list(dest_dir.glob("test_generations*"))
     if clash:
-        print(f'SKIPPING to avoid overwriting {clash}')
-    ckpt = torch.load(ckpt_path, map_location='cpu')
-    if 'hparams' in ckpt:
-        args = argparse.Namespace(**ckpt['hparams'])
+        print(f"SKIPPING to avoid overwriting {clash}")
+    ckpt = torch.load(ckpt_path, map_location="cpu")
+    if "hparams" in ckpt:
+        args = argparse.Namespace(**ckpt["hparams"])
     else:
-        args = argparse.Namespace(**pickle_load(exp_dir/'hparams.pkl'))
+        args = argparse.Namespace(**pickle_load(exp_dir / "hparams.pkl"))
     args.resume_from_checkpoint = str(ckpt_path)
     args.do_train = False
     args.output_dir = str(dest_dir)
     args.n_gpu = 1
     args.eval_batch_size = 16
     return eval_and_fix(args)
-
 
 
 if __name__ == "__main__":
