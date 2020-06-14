@@ -97,7 +97,7 @@ BART_INPUTS_DOCSTRING = r"""
 
 def invert_mask(attention_mask):
     assert attention_mask.dim() == 2
-    return attention_mask.eq(0)
+    return torch.logical_not(attention_mask)
 
 
 def _prepare_bart_decoder_inputs(
