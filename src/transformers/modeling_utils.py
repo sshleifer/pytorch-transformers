@@ -1732,6 +1732,7 @@ class BeamHypotheses(object):
         elif self.early_stopping:
             return True
         else:
+            return False
             if cur_len is None:
                 cur_len = self.max_length
             cur_score = best_sum_logprobs / cur_len ** self.length_penalty
