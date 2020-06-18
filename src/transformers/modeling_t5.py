@@ -378,7 +378,7 @@ class T5Attention(nn.Module):
                 position_bias = position_bias + mask  # (bs, n_heads, qlen, klen)
 
         scores += position_bias
-        weights = F.softmax(scores.float(), dim=-1).type_as(scores)  # (bs, n_heads, qlen, klen)
+        weights = F.softmax(scores, dim=-1).type_as(scores)  # (bs, n_heads, qlen, klen)
         weights = F.dropout(weights, p=self.dropout, training=self.training)  # (bs, n_heads, qlen, klen)
 
         # Mask heads if we want to
