@@ -1513,7 +1513,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
                 )
                 if done[batch_idx]:
                     out_scores[batch_idx] = max([x[0] for x in generated_hyps[batch_idx].beams])
-                    #sorted_scores = sorted([(s, idx) for idx, (s, _) in enumerate(self.beams)])
+                    # sorted_scores = sorted([(s, idx) for idx, (s, _) in enumerate(self.beams)])
 
                 # update next beam content
                 assert len(next_sent_beam) == num_beams, "Beam should always be full"
