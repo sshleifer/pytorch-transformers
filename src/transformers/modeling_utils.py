@@ -1368,8 +1368,8 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
         # from easydict import EasyDict
         # import time
         # self.log = EasyDict({'score': []}
-        out_scores = []
         # generated hypotheses
+
         generated_hyps = [
             BeamHypotheses(num_beams, max_length, length_penalty, early_stopping=early_stopping)
             for _ in range(batch_size)
@@ -1388,6 +1388,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
 
         # done sentences
         done = [False for _ in range(batch_size)]
+        out_scores = [False for _ in range(batch_size)]
         # t0 = time.time()
         while cur_len < max_length:
             model_inputs = self.prepare_inputs_for_generation(
@@ -1510,6 +1511,9 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
                 done[batch_idx] = done[batch_idx] or generated_hyps[batch_idx].is_done(
                     next_scores[batch_idx].max().item(), cur_len
                 )
+                if done[batch_idx]:
+                    out_scores[batch_idx] = max([x[0] for x in generated_hyps[batch_idx].beams])
+                    #sorted_scores = sorted([(s, idx) for idx, (s, _) in enumerate(self.beams)])
 
                 # update next beam content
                 assert len(next_sent_beam) == num_beams, "Beam should always be full"
@@ -1562,7 +1566,6 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
                 final_score = beam_scores[effective_beam_id].item()
                 final_tokens = input_ids[effective_beam_id]
                 generated_hyps[batch_idx].add(final_tokens, final_score)
-                out_scores.append(final_score)
 
         # depending on whether greedy generation is wanted or not define different output_batch_size and output_num_return_sequences_per_batch
         output_batch_size = batch_size if do_sample else batch_size * num_return_sequences
