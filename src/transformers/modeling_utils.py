@@ -1365,7 +1365,10 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
     ):
         """ Generate sequences for each example with beam search.
         """
-
+        #from easydict import EasyDict
+        #import time
+        #self.log = EasyDict({'score': []}
+        scores = []
         # generated hypotheses
         generated_hyps = [
             BeamHypotheses(num_beams, max_length, length_penalty, early_stopping=early_stopping)
@@ -1385,7 +1388,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
 
         # done sentences
         done = [False for _ in range(batch_size)]
-
+        t0 = time.time()
         while cur_len < max_length:
             model_inputs = self.prepare_inputs_for_generation(
                 input_ids, past=past, attention_mask=attention_mask, use_cache=use_cache, **model_specific_kwargs
@@ -1559,6 +1562,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
                 final_score = beam_scores[effective_beam_id].item()
                 final_tokens = input_ids[effective_beam_id]
                 generated_hyps[batch_idx].add(final_tokens, final_score)
+                scores.append(final_score)
 
         # depending on whether greedy generation is wanted or not define different output_batch_size and output_num_return_sequences_per_batch
         output_batch_size = batch_size if do_sample else batch_size * num_return_sequences
@@ -1593,7 +1597,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
             assert (len(hypo) == max_length for hypo in best)
             decoded = torch.stack(best).type(torch.long).to(next(self.parameters()).device)
 
-        return decoded
+        return decoded, scores
 
     @staticmethod
     def _reorder_cache(past: Tuple, beam_idx: Tensor) -> Tuple[Tensor]:
