@@ -1388,7 +1388,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
 
         # done sentences
         done = [False for _ in range(batch_size)]
-        t0 = time.time()
+        #t0 = time.time()
         while cur_len < max_length:
             model_inputs = self.prepare_inputs_for_generation(
                 input_ids, past=past, attention_mask=attention_mask, use_cache=use_cache, **model_specific_kwargs
