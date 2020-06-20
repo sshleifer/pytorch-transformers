@@ -1368,7 +1368,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
         # from easydict import EasyDict
         # import time
         # self.log = EasyDict({'score': []}
-        scores = []
+        out_scores = []
         # generated hypotheses
         generated_hyps = [
             BeamHypotheses(num_beams, max_length, length_penalty, early_stopping=early_stopping)
@@ -1562,7 +1562,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
                 final_score = beam_scores[effective_beam_id].item()
                 final_tokens = input_ids[effective_beam_id]
                 generated_hyps[batch_idx].add(final_tokens, final_score)
-                scores.append(final_score)
+                out_scores.append(final_score)
 
         # depending on whether greedy generation is wanted or not define different output_batch_size and output_num_return_sequences_per_batch
         output_batch_size = batch_size if do_sample else batch_size * num_return_sequences
@@ -1597,7 +1597,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
             assert (len(hypo) == max_length for hypo in best)
             decoded = torch.stack(best).type(torch.long).to(next(self.parameters()).device)
 
-        return decoded, scores
+        return decoded, out_scores
 
     @staticmethod
     def _reorder_cache(past: Tuple, beam_idx: Tensor) -> Tuple[Tensor]:
