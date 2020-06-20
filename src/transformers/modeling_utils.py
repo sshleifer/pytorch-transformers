@@ -1365,9 +1365,9 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
     ):
         """ Generate sequences for each example with beam search.
         """
-        #from easydict import EasyDict
-        #import time
-        #self.log = EasyDict({'score': []}
+        # from easydict import EasyDict
+        # import time
+        # self.log = EasyDict({'score': []}
         scores = []
         # generated hypotheses
         generated_hyps = [
