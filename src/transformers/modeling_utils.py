@@ -1187,54 +1187,32 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
             encoder_outputs = None
             cur_len = input_ids.shape[-1]
 
-        if num_beams > 1:
-            output = self._generate_beam_search(
-                input_ids,
-                cur_len=cur_len,
-                max_length=max_length,
-                min_length=min_length,
-                do_sample=do_sample,
-                early_stopping=early_stopping,
-                temperature=temperature,
-                top_k=top_k,
-                top_p=top_p,
-                repetition_penalty=repetition_penalty,
-                no_repeat_ngram_size=no_repeat_ngram_size,
-                bad_words_ids=bad_words_ids,
-                pad_token_id=pad_token_id,
-                eos_token_id=eos_token_id,
-                batch_size=effective_batch_size,
-                num_return_sequences=num_return_sequences,
-                length_penalty=length_penalty,
-                num_beams=num_beams,
-                vocab_size=vocab_size,
-                encoder_outputs=encoder_outputs,
-                attention_mask=attention_mask,
-                use_cache=use_cache,
-                model_specific_kwargs=model_specific_kwargs,
-            )
-        else:
-            output = self._generate_no_beam_search(
-                input_ids,
-                cur_len=cur_len,
-                max_length=max_length,
-                min_length=min_length,
-                do_sample=do_sample,
-                temperature=temperature,
-                top_k=top_k,
-                top_p=top_p,
-                repetition_penalty=repetition_penalty,
-                no_repeat_ngram_size=no_repeat_ngram_size,
-                bad_words_ids=bad_words_ids,
-                pad_token_id=pad_token_id,
-                eos_token_id=eos_token_id,
-                batch_size=effective_batch_size,
-                encoder_outputs=encoder_outputs,
-                attention_mask=attention_mask,
-                use_cache=use_cache,
-                model_specific_kwargs=model_specific_kwargs,
-            )
 
+        output = self._generate_beam_search(
+            input_ids,
+            cur_len=cur_len,
+            max_length=max_length,
+            min_length=min_length,
+            do_sample=do_sample,
+            early_stopping=early_stopping,
+            temperature=temperature,
+            top_k=top_k,
+            top_p=top_p,
+            repetition_penalty=repetition_penalty,
+            no_repeat_ngram_size=no_repeat_ngram_size,
+            bad_words_ids=bad_words_ids,
+            pad_token_id=pad_token_id,
+            eos_token_id=eos_token_id,
+            batch_size=effective_batch_size,
+            num_return_sequences=num_return_sequences,
+            length_penalty=length_penalty,
+            num_beams=num_beams,
+            vocab_size=vocab_size,
+            encoder_outputs=encoder_outputs,
+            attention_mask=attention_mask,
+            use_cache=use_cache,
+            model_specific_kwargs=model_specific_kwargs,
+        )
         return output
 
     def _generate_no_beam_search(
