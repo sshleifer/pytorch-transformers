@@ -478,7 +478,7 @@ def evaluate_checkpoint(ckpt_path: Path, dest_dir=None):
 
 DISTILBERT_ALTERNATE_PATTERN = {  # maps # layers in student -> which teacher layers to copy
     6: [0, 2, 4, 7, 9, 11],
-    1: [11],
+    1: [0],
     3: [0, 6, 11],
     2: [0, 11],
     4: [0, 4, 8, 11],
