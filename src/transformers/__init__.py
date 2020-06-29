@@ -380,10 +380,7 @@ if is_torch_available():
         LongformerForQuestionAnswering,
         LONGFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
     )
-    from .modeling_blenderbot import (
-        BLENDERBOT_PRETRAINED_MODEL_ARCHIVE_LIST,
-        BlenderbotConditionalGeneration
-    )
+    from .modeling_blenderbot import BLENDERBOT_PRETRAINED_MODEL_ARCHIVE_LIST, BlenderbotConditionalGeneration
 
     from .modeling_retribert import (
         RetriBertPreTrainedModel,
