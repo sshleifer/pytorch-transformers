@@ -305,7 +305,7 @@ def generic_train(
         import torch_xla.core.xla_model as xm
 
         train_params["num_tpu_cores"] = args.n_tpu_cores
-        train_params["gpus"] = 0
+        args.gpus = 0
 
     if args.gpus > 1:
         train_params["distributed_backend"] = "ddp"
