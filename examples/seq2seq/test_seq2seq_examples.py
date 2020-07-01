@@ -95,7 +95,7 @@ logging.disable(logging.CRITICAL)  # remove noisy download output from traceback
 try:
     import torch_xla.core.xla_model as xm
     tpu_available = True
-except ImportError
+except ImportError:
     tpu_available = False
 
 def make_test_data_dir(**kwargs):
