@@ -304,7 +304,7 @@ def generic_train(
         global xm
         import torch_xla.core.xla_model as xm
 
-        train_params["num_tpu_cores"] = args.n_tpu_cores
+        train_params["tpu_cores"] = args.n_tpu_cores
         args.gpus = 0
 
     if args.gpus > 1:
