@@ -92,7 +92,11 @@ MARIAN_TINY = "sshleifer/tiny-marian-en-de"
 stream_handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(stream_handler)
 logging.disable(logging.CRITICAL)  # remove noisy download output from tracebacks
-
+try:
+    import torch_xla.core.xla_model as xm
+    tpu_available = True
+except ImportError
+    tpu_available = False
 
 def make_test_data_dir(**kwargs):
     tmp_dir = Path(tempfile.mkdtemp(**kwargs))
@@ -111,6 +115,11 @@ class TestSummarizationDistiller(unittest.TestCase):
     @require_multigpu
     def test_multigpu(self):
         updates = dict(no_teacher=True, freeze_encoder=True, gpus=2, sortish_sampler=False,)
+        self._test_distiller_cli(updates)
+
+    @unittest.skipUnless(tpu_available, 'tpu test skipped')
+    def test_tpu(self):
+        updates = dict(no_teacher=True, freeze_encoder=True, gpus=0, n_tpu_cores=1, fp16=False)
         self._test_distiller_cli(updates)
 
     def test_distill_no_teacher(self):
