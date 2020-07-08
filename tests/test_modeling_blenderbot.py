@@ -156,6 +156,7 @@ class BlenderbotIntegrationTests(unittest.TestCase):
             eos_token_id=2,
             pad_token_id=0,
             bos_token_id=1,
+            normalize_before=True,
         )
         mask = (input_ids != config.pad_token_id).to(torch.long)
         return config, input_ids, mask
@@ -267,7 +268,7 @@ class BlenderbotIntegrationTests(unittest.TestCase):
         expected_output = parlai_encoder(input_ids)[0]
         blender_output = blender_encoder(input_ids, attention_mask=mask)[0]
         self.assertTrue(torch.allclose(expected_output, blender_output, atol=1e-3))
-        
+
     def test_blenderbot_decoder_layer_forward(self):
         config, input_ids, mask = self.get_config_and_data()
         
@@ -275,8 +276,8 @@ class BlenderbotIntegrationTests(unittest.TestCase):
         embeddings = torch.nn.Embedding(config.vocab_size, config.d_model, padding_idx=config.pad_token_id)
         
         blenderbot_model = BlenderbotForConditionalGeneration(config).to(torch_device)
-        blender_decoder_layer = blenderbot_model.decoder.layers[0]
-        blender_decoder_layer.eval()
+        bart_dec_layer = blenderbot_model.decoder.layers[0]
+        bart_dec_layer.eval()
         
         parlai_decoder_layer = TransformerDecoderLayer(config.encoder_attention_heads, config.d_model, config.encoder_ffn_dim, 
                                                        dropout=config.dropout, activation='gelu', variant='prelayernorm')
@@ -296,14 +297,25 @@ class BlenderbotIntegrationTests(unittest.TestCase):
         expected_encoder_output = parlai_encoder(input_ids)[0]
         blender_encoder_output = blender_encoder(input_ids, attention_mask=mask)[0]
         self.assertTrue(torch.allclose(expected_encoder_output, blender_encoder_output, atol=1e-3))
+
         
-        self._copy_layer_weights_in_blender_decoder_layer(blender_decoder_layer, parlai_decoder_layer)
+        self._copy_layer_weights_in_blender_decoder_layer(bart_dec_layer, parlai_decoder_layer)
         tensor = embeddings(input_ids)
-        expected_decoder_layer_output = parlai_decoder_layer(tensor, encoder_output=expected_encoder_output, encoder_mask=mask)
-        
-        blender_decoder_layer_output = blender_decoder_layer(tensor.transpose(1,0), encoder_hidden_states=blender_encoder_output, encoder_attn_mask=mask)[0] 
+        expected_decoder_layer_output,*_ = parlai_decoder_layer(tensor, encoder_output=expected_encoder_output, encoder_mask=mask)
+        causal_mask = parlai_decoder_layer._create_selfattn_mask(tensor)
+        from transformers.modeling_bart import invert_mask, fill_with_neg_inf
+        tgt_len = causal_mask.shape[1]
+        causal_mask = torch.triu(fill_with_neg_inf(torch.zeros(tgt_len, tgt_len)), 1).to(
+            dtype=tensor.dtype, device=tensor.device
+        )
+        #import ipdb; ipdb.set_trace()
+        expected_slice = torch.tensor([-1.7712,  0.2689, -1.8851, -2.8012,  1.3736, -0.7266,  3.1182,  1.1434,
+        -1.4304,  1.2469, -0.3417,  0.3943,  3.1211,  3.3170,  2.1522, -2.1234])
+        blender_decoder_layer_output = bart_dec_layer(tensor.transpose(1,0), encoder_hidden_states=blender_encoder_output, encoder_attn_mask=None, causal_mask=causal_mask)[0]
+        self.assertTrue(torch.allclose(expected_slice, blender_decoder_layer_output[0,0]))
         print(blender_decoder_layer_output)
-        # self.assertTrue(torch.allclose(expected_output, blender_output, atol=1e-4))
+        self.assertTrue(torch.allclose(expected_decoder_layer_output, blender_decoder_layer_output.transpose(0,1), atol=1e-4))
+        #self.assertTrue(torch.allclose(expected_output, blender_output, atol=1e-4))
 
     @slow
     def test_inference(self):
