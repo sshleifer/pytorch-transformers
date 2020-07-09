@@ -625,8 +625,10 @@ class SelfAttention(nn.Module):
         else:
             k = self.k_proj(query)
             v = self.v_proj(query)
-
-        q = self._shape(q, tgt_len, bsz)
+        if self.encoder_decoder_attention and self.mode == 'parlai':
+            q = self.prepare_head(q)
+        else:
+            q = self._shape(q, tgt_len, bsz)
         if k is not None:
             if self.encoder_decoder_attention and self.mode=='parlai':
                 k = self.prepare_head(k)

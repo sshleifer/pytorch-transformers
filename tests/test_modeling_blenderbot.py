@@ -136,9 +136,9 @@ class BlenderbotIntegrationTests(unittest.TestCase):
         input_ids = torch.tensor(
             [
                 [64, 61, 14, 42, 96, 32, 82, 7, 64, 61, 14, 42, 96, 32, 82, 7, 2],
-                [94, 23, 54, 10, 10, 41, 90, 48, 94, 23, 54, 10, 10, 41, 90, 4, 2]
+                [94, 23, 54, 10, 10, 41, 90, 48, 94, 23, 54, 10, 10, 41, 90, 4, 2],
                 # parity tests break with following padding case
-                # [94, 23, 54, 10, 10, 41, 90, 48, 94, 23, 54, 10, 10, 41, 90, 48, 2, 1]
+                [94, 23, 54, 10, 10, 41, 90, 48, 94, 23, 54, 10, 10, 41, 90, 2, 1]
             ],
             dtype=torch.long,
             device=torch_device,
@@ -241,12 +241,13 @@ class BlenderbotIntegrationTests(unittest.TestCase):
         blender_encoder_layer.eval()
         
         parlai_encoder_layer = TransformerEncoderLayer(config.encoder_attention_heads, config.d_model, config.encoder_ffn_dim, 
-                                                       dropout=config.dropout, activation='gelu', variant='prelayernorm')
+                                                       dropout=config.dropout,
+                                                       activation='gelu', variant='prelayernorm')
         parlai_encoder_layer.eval()
         
         self._copy_layer_weights_in_blender_encoder_layer(blender_encoder_layer, parlai_encoder_layer)
         expected_output = parlai_encoder_layer(hidden_states, mask)
-        blender_output = blender_encoder_layer(hidden_states.transpose(1,0), encoder_padding_mask=mask)[0].transpose(1,0)
+        blender_output = blender_encoder_layer(hidden_states.transpose(1,0), mask)[0].transpose(1,0)
         assert_tensors_close(expected_output, blender_output)
         
     def test_blenderbot_encoder_forward(self):
@@ -277,26 +278,25 @@ class BlenderbotIntegrationTests(unittest.TestCase):
         torch.manual_seed(0)
         embeddings = torch.nn.Embedding(config.vocab_size, config.d_model, padding_idx=config.pad_token_id)
         
-        blenderbot_model = BlenderbotForConditionalGeneration(config).to(torch_device)
+        blenderbot_model = BlenderbotForConditionalGeneration(config).to(torch_device).eval()
         bart_dec_layer = blenderbot_model.decoder.layers[0]
-        bart_dec_layer.eval()
+
         
         parlai_decoder_layer = TransformerDecoderLayer(config.encoder_attention_heads, config.d_model, config.encoder_ffn_dim, 
-                                                       dropout=config.dropout, activation='gelu', variant='prelayernorm')
-        parlai_decoder_layer.eval()
+                                                       dropout=config.dropout, activation='gelu', variant='prelayernorm').eval()
+
         
         blender_encoder = blenderbot_model.encoder
         #blender_encoder.embed_tokens = embeddings
-        blender_encoder.eval()
+
         
         parlai_encoder = TransformerEncoder(config.encoder_attention_heads, config.encoder_layers, config.d_model, config.encoder_ffn_dim,
                                             config.vocab_size, learn_positional_embeddings=True, variant='prelayernorm',n_positions=config.max_position_embeddings,
-                                            activation=config.activation_function, dropout=config.dropout, embedding=embeddings, reduction_type=None, padding_idx=config.pad_token_id)
-        parlai_encoder.eval()
+                                            activation=config.activation_function, dropout=config.dropout, embedding=embeddings, reduction_type=None, padding_idx=config.pad_token_id).eval()
         
         self._copy_layer_weights_in_blender_encoder(blender_encoder, parlai_encoder, config.encoder_layers)
         
-        expected_encoder_output = parlai_encoder(input_ids, )[0]
+        expected_encoder_output = parlai_encoder(input_ids)[0]
         blender_encoder_output = blender_encoder(input_ids, attention_mask=mask)[0]
         assert_tensors_close(expected_encoder_output[:,:-1], blender_encoder_output[:,:-1], atol=1e-4)
 
