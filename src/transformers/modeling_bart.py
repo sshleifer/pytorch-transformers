@@ -643,6 +643,7 @@ class SelfAttention(nn.Module):
         if saved_state is not None:
             k, v, key_padding_mask = self._use_saved_state(k, v, saved_state, key_padding_mask, static_kv, bsz)
 
+
         # Update cache
         layer_state[self.cache_key] = {
             "prev_key": k.view(bsz, self.num_heads, -1, self.head_dim),
@@ -654,6 +655,7 @@ class SelfAttention(nn.Module):
         src_len = k.size(1)
         print_tensor('bart q', q)
         print_tensor('bart k', k)
+        # assert q.shape[:2] == k.shape, f'q and k shape should match. got q:{q.shape}, k: {k.shape}'
         attn_weights = torch.bmm(q, k.transpose(1, 2))
         print_tensor('bart attn_weights', attn_weights)
         assert attn_weights.size() == (bsz * self.num_heads, tgt_len, src_len)
@@ -708,37 +710,18 @@ class SelfAttention(nn.Module):
                 v = torch.cat([prev_value, v], dim=1)
         assert k is not None and v is not None
         prev_key_padding_mask: Optional[Tensor] = saved_state.get("prev_key_padding_mask", None)
-        key_padding_mask = self._cat_prev_key_padding_mask(
-            key_padding_mask, prev_key_padding_mask, bsz, k.size(1), static_kv
-        )
-        return k, v, key_padding_mask
-
-    @staticmethod
-    def _cat_prev_key_padding_mask(
-        key_padding_mask: Optional[Tensor],
-        prev_key_padding_mask: Optional[Tensor],
-        batch_size: int,
-        src_len: int,
-        static_kv: bool,
-    ) -> Optional[Tensor]:
-        # saved key padding masks have shape (bsz, seq_len)
         if prev_key_padding_mask is not None:
             if static_kv:
                 new_key_padding_mask = prev_key_padding_mask
             else:
                 new_key_padding_mask = torch.cat([prev_key_padding_mask, key_padding_mask], dim=1)
-
-        elif key_padding_mask is not None:
-            filler = torch.zeros(
-                batch_size,
-                src_len - key_padding_mask.size(1),
-                dtype=key_padding_mask.dtype,
-                device=key_padding_mask.device,
-            )
-            new_key_padding_mask = torch.cat([filler, key_padding_mask], dim=1)
         else:
-            new_key_padding_mask = prev_key_padding_mask
-        return new_key_padding_mask
+            new_key_padding_mask = key_padding_mask
+
+        # key_padding_mask = self._cat_prev_key_padding_mask(
+        #     key_padding_mask, prev_key_padding_mask, bsz, k.size(1), static_kv
+        # )
+        return k, v, new_key_padding_mask
 
 
 class BartClassificationHead(nn.Module):

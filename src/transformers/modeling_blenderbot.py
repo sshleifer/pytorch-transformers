@@ -22,8 +22,7 @@ from transformers.modeling_bart import SelfAttention
 class BlenderbotDecoder(BartDecoder):
 
     """
-    This class inherits BartDecoder. Please check the
-    superclass for documentation and usage examples
+    This class inherits BartDecoder. Please check the superclass for documentation and usage examples.
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
