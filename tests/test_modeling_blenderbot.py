@@ -312,7 +312,7 @@ class BlenderbotIntegrationTests(unittest.TestCase):
         expected_slice = torch.tensor([-1.7712,  0.2689, -1.8851, -2.8012,  1.3736, -0.7266,  3.1182,  1.1434,
         -1.4304,  1.2469, -0.3417,  0.3943,  3.1211,  3.3170,  2.1522, -2.1234])
         blender_decoder_layer_output = bart_dec_layer(tensor.transpose(1,0), encoder_hidden_states=blender_encoder_output, encoder_attn_mask=None, causal_mask=causal_mask)[0]
-        self.assertTrue(torch.allclose(expected_slice, blender_decoder_layer_output[0,0]))
+        self.assertTrue(torch.allclose(expected_slice, blender_decoder_layer_output[0,0], atol=1e-3))
         print(blender_decoder_layer_output)
         self.assertTrue(torch.allclose(expected_decoder_layer_output, blender_decoder_layer_output.transpose(0,1), atol=1e-4))
         #self.assertTrue(torch.allclose(expected_output, blender_output, atol=1e-4))

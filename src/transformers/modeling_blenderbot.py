@@ -18,24 +18,22 @@ from .modeling_bart import (
 
 BLENDERBOT_PRETRAINED_MODEL_ARCHIVE_LIST = ["sshleifer/blenderbot-3B"]
 
-
-class BlenderEncoder(BartEncoder):
-    """
-    This class inherits BartEncoder. Please check the
-    superclass for the appropriate documentation alongside usage examples
-    """
-
-    config_class = BlenderbotConfig
-
-
+from transformers.modeling_bart import SelfAttention
 class BlenderbotDecoder(BartDecoder):
 
     """
     This class inherits BartDecoder. Please check the
     superclass for documentation and usage examples
     """
-
-    config_class = BlenderbotConfig
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for layer in self.layers:
+            #func_type = type(layer.encoder_attn._shape)
+            layer.encoder_attn.mode = 'parlai'
+            # layer.encoder_attn = BlenderbotCrossAttention(bart_attn.embed_dim, bart_attn.num_heads,
+            #                                                      dropout=bart_attn.dropout, bias=True,
+            #                                                      encoder_decoder_attention=True)
+            #layer.encoder_attn._shape = func_type(blenderbot_shape, layer, SelfAttention)
 
 
 class PretrainedBlenderbotModel(PretrainedBartModel):
@@ -46,22 +44,7 @@ class PretrainedBlenderbotModel(PretrainedBartModel):
     """
 
     config_class = BlenderbotConfig
-    base_model_prefix = "blenderbot"  # TODO(mariama): this seems wrong. I dont see self.blenderbot -SS
-
-    def _init_weights(self, module):
-        """
-        initialize weights
-        :param module:
-        :return:
-        """
-        if isinstance(module, (nn.Linear, nn.Embedding)):
-            module.weight.data.normal_(mean=0.0, std=self.config.init_std)
-            if isinstance(module, nn.Linear) and module.bias is not None:
-                module.bias.data.zero_()
-        elif isinstance(module, nn.LayerNorm):
-            module.bias.data.zero_()
-            module.weight.data.fill_(1.0)
-
+    base_model_prefix = ""
 
 BLENDERBOT_START_DOCSTRING = r"""
     This model is a PyTorch `torch.nn.Module <https://pytorch.org/docs/stable/nn.html#torch.nn.Module>`_ sub-class.
@@ -72,7 +55,6 @@ BLENDERBOT_START_DOCSTRING = r"""
             Initializing with a config file does not load the weights associated with the model, only the configuration.
             Check out the :meth:`~transformers.PreTrainedModel.from_pretrained` method to load the model weights.
 """
-
 BLENDERBOT_INPUTS_DOCSTRING = r"""
  
  Args:
@@ -101,7 +83,7 @@ class BlenderbotForConditionalGeneration(PretrainedBlenderbotModel):
         super().__init__(config)
         # self.config = config
         self.shared = nn.Embedding(config.vocab_size, config.d_model, config.pad_token_id)
-        self.encoder = BlenderEncoder(config, self.shared)
+        self.encoder = BartEncoder(config, self.shared)
         self.decoder = BlenderbotDecoder(config, self.shared)
         self.init_weights()
 
@@ -151,12 +133,14 @@ class BlenderbotForConditionalGeneration(PretrainedBlenderbotModel):
             loss = loss_fc(scores[0].view(-1, self.config.vocab_size), labels.view(-1))
             outputs = (loss,) + outputs
         return outputs
+
     def prepare_logits_for_generation(self, logits, cur_len, max_length):
         # force the start token  probability of generation to be 0.
         logits[:, self.config.bos_token_id] = float("-inf")
         return logits
+
     def prepare_inputs_for_generation(self, decoder_input_ids, past, attention_mask, use_cache, **kwargs):
-        # exactly as in BartConditionalGenerator
+        # exactly as in BartConditionalGeneration
         assert past is not None, "past has to be defined for encoder_outputs"
         # first step, decoder_cached_states are empty
         encoder_outputs, decoder_cached_states = past

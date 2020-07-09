@@ -552,7 +552,7 @@ def print_tensor(msg, x):
 
 class SelfAttention(nn.Module):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
-
+    mode = 'bart'
     def __init__(
         self,
         embed_dim,
@@ -576,9 +576,9 @@ class SelfAttention(nn.Module):
         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.cache_key = "encoder_decoder" if self.encoder_decoder_attention else "self"
 
-    def _shape(self, tensor, dim_0, bsz):
+    def _shape(self, tensor, seq_len, bsz):
         """k = self._shape(k, -1, bsz)"""
-        return tensor.contiguous().view(dim_0, bsz * self.num_heads, self.head_dim).transpose(0, 1)
+        return tensor.contiguous().view(seq_len, bsz * self.num_heads, self.head_dim).transpose(0, 1)
 
     def prepare_head(self, kout):
         # input is [batch_size, seq_len, n_heads * dim_per_head]
@@ -609,15 +609,12 @@ class SelfAttention(nn.Module):
         # get here for encoder decoder cause of static_kv
         if layer_state is not None:  # reuse k,v and encoder_padding_mask
             saved_state = layer_state.get(self.cache_key, {})
-            if "prev_key" in saved_state:
+            if "prev_key" in saved_state and static_kv:
                 # previous time steps are cached - no need to recompute key and value if they are static
-                if static_kv:
-                    key = None
+                key = None
         else:
             saved_state = None
             layer_state = {}
-        # if self.encoder_decoder_attention:
-        #     import ipdb;ipdb.set_trace()
         q = self.q_proj(query) * self.scaling
         if static_kv:
             if key is None:
@@ -631,9 +628,17 @@ class SelfAttention(nn.Module):
 
         q = self._shape(q, tgt_len, bsz)
         if k is not None:
-            k = self._shape(k, -1, bsz)
+            if self.encoder_decoder_attention and self.mode=='parlai':
+                k = self.prepare_head(k)
+            else:
+                k = self._shape(k, -1, bsz)
         if v is not None:
-            v = self._shape(v, -1, bsz)
+            if self.encoder_decoder_attention and self.mode=='parlai':
+                v = self.prepare_head(v)
+            else:
+                v = self._shape(v, -1, bsz)
+            #v = self.prepare_head(v)
+            #v = self._shape(v, -1, bsz)
 
         if saved_state is not None:
             k, v, key_padding_mask = self._use_saved_state(k, v, saved_state, key_padding_mask, static_kv, bsz)
