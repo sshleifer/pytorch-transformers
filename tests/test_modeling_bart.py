@@ -159,7 +159,7 @@ class BARTModelTest(ModelTesterMixin, unittest.TestCase):
         decoder_features_with_passed_mask = model(
             decoder_attention_mask=invert_mask(decoder_attn_mask), decoder_input_ids=decoder_input_ids, **inputs_dict
         )[0]
-        _assert_tensors_equal(decoder_features_with_passed_mask, decoder_features_with_created_mask)
+        assert_tensors_close(decoder_features_with_passed_mask, decoder_features_with_created_mask)
         useless_mask = torch.zeros_like(decoder_attn_mask)
         decoder_features = model(decoder_attention_mask=useless_mask, **inputs_dict)[0]
         self.assertTrue(isinstance(decoder_features, torch.Tensor))  # no hidden states or attentions
@@ -173,7 +173,7 @@ class BARTModelTest(ModelTesterMixin, unittest.TestCase):
         decoder_features_with_long_encoder_mask = model(
             inputs_dict["input_ids"], attention_mask=inputs_dict["attention_mask"].long()
         )[0]
-        _assert_tensors_equal(decoder_features_with_long_encoder_mask, decoder_features_with_created_mask)
+        assert_tensors_close(decoder_features_with_long_encoder_mask, decoder_features_with_created_mask)
 
     def test_save_load_strict(self):
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
@@ -346,7 +346,7 @@ class BartHeadTests(unittest.TestCase):
         ]
         for ex, desired_result in zip(examples, fairseq_results):
             bart_toks = tokenizer.encode(ex, return_tensors="pt")
-            _assert_tensors_equal(desired_result.long(), bart_toks, prefix=ex)
+            assert_tensors_close(desired_result.long(), bart_toks, prefix=ex)
 
     def test_generate_fp16(self):
         config, input_ids, batch_size = self._get_config_and_data()
@@ -393,8 +393,8 @@ class BartHeadTests(unittest.TestCase):
         self.assertTrue(torch.eq(input_new, output_new).all())
 
 
-def _assert_tensors_equal(a, b, atol=1e-12, prefix=""):
-    """If tensors not close, or a and b arent both tensors, raise a nice Assertion error."""
+def assert_tensors_close(a, b, atol=1e-12, prefix=""):
+    """If tensors not close, or a and b aren't both tensors, raise a nice Assertion error."""
     if a is None and b is None:
         return True
     try:
@@ -471,8 +471,8 @@ class BartModelIntegrationTests(unittest.TestCase):
         inputs_dict = prepare_bart_inputs_dict(model.config, input_ids=input_ids_no_pad)
         with torch.no_grad():
             logits2 = model(**inputs_dict)[0]
-        _assert_tensors_equal(batched_logits[1], logits2, atol=TOLERANCE)
-        _assert_tensors_equal(expected_slice, logits_arr, atol=TOLERANCE)
+        assert_tensors_close(batched_logits[1], logits2, atol=TOLERANCE)
+        assert_tensors_close(expected_slice, logits_arr, atol=TOLERANCE)
 
     @slow
     def test_xsum_summarization_same_as_fairseq(self):
