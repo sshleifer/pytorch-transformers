@@ -157,7 +157,7 @@ class BlenderBotIntegrationTests(unittest.TestCase):
         ]
         tgt_text = ["I'm not sure, but I do know that social anxiety disorder is a mental disorder"]
         model_inputs = self.tokenizer(src_text, return_tensors='pt').to(torch_device)
-        model 
+        model
         with torch.no_grad():
             output = self.model(**inputs_dict)[0]
         expected_shape = torch.Size((batch_size, input_ids.size(1), self.model.config.vocab_size))

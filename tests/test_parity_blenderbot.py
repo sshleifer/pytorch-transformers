@@ -119,9 +119,10 @@ class BlenderbotParityTests(unittest.TestCase):
         self.copy_attn_weights(cross_attn, parlai_attn)
         dummy_encoder_output = torch.rand(bs, 11, config.d_model)
         mask = torch.ones(dummy_encoder_output.shape[:2])
-        parlai_way = cross_attn.prepare_head(dummy_encoder_output)
-        hf_way = cross_attn._shape(dummy_encoder_output.transpose(0, 1), 11, bs)
-        assert_tensors_close(parlai_way, hf_way, atol=1e-6)
+        # This passed
+        #parlai_way = cross_attn.prepare_head(dummy_encoder_output)
+        #hf_way = cross_attn._shape(dummy_encoder_output.transpose(0, 1), 11, bs)
+        #assert_tensors_close(parlai_way, hf_way, atol=1e-6)
 
         mask[-1, -1] = 0
         bart_mask = invert_mask(mask)

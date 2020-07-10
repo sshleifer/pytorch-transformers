@@ -380,12 +380,11 @@ class DecoderLayer(nn.Module):
         x, self_attn_weights = self.self_attn(
             query=x,
             key=x,
-            layer_state=layer_state,
+            layer_state=layer_state,  # adds keys to layer state
             key_padding_mask=decoder_padding_mask,
             attn_mask=causal_mask,
             output_attentions=output_attentions,
         )
-
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
         if not self.normalize_before:
@@ -397,9 +396,11 @@ class DecoderLayer(nn.Module):
         if self.normalize_before:
             x = self.encoder_attn_layer_norm(x)
         x, _ = self.encoder_attn(
-            query=x, key=encoder_hidden_states, key_padding_mask=encoder_attn_mask, layer_state=layer_state,
+            query=x,
+            key=encoder_hidden_states,
+            key_padding_mask=encoder_attn_mask,
+            layer_state=layer_state,  # mutates layer state
         )
-        # parlai: x[0, 0] = tensor([-0.2172, 0.6419, -0.7223, -0.0189, 1.0938, 0.5338, 0.8013, 0.5323, -0.4395, -0.3531, -0.2075, 0.4068, 0.2357, 1.0790, 0.1742, -0.9198]
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
         if not self.normalize_before:
@@ -557,14 +558,8 @@ def _reorder_buffer(attn_cache, new_order):
     return attn_cache
 
 
-def print_tensor(msg, x):
-    print(f"{msg}:  {x.shape} {x[0,0]}")
-
-
 class SelfAttention(nn.Module):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
-
-    mode = "bart"
 
     def __init__(
         self,
@@ -589,17 +584,8 @@ class SelfAttention(nn.Module):
         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.cache_key = "encoder_decoder" if self.encoder_decoder_attention else "self"
 
-    def _shape(self, tensor, seq_len, bsz):
-        """k = self._shape(k, -1, bsz)"""
-        return tensor.contiguous().view(seq_len, bsz * self.num_heads, self.head_dim).transpose(0, 1)
-
-    def prepare_head(self, kout):
-        # input is [batch_size, seq_len, n_heads * dim_per_head]
-        # output is [batch_size * n_heads, seq_len, dim_per_head]
-        bsz, seq_len, _ = kout.size()
-        kout = kout.view(bsz, seq_len, self.num_heads, self.head_dim)
-        kout = kout.transpose(1, 2).contiguous().view(bsz * self.num_heads, seq_len, self.head_dim)
-        return kout
+    def _shape(self, tensor, dim_0, bsz):
+        return tensor.contiguous().view(dim_0, bsz * self.num_heads, self.head_dim).transpose(0, 1)
 
     def forward(
         self,
@@ -618,12 +604,14 @@ class SelfAttention(nn.Module):
         # get here for encoder decoder cause of static_kv
         if layer_state is not None:  # reuse k,v and encoder_padding_mask
             saved_state = layer_state.get(self.cache_key, {})
-            if "prev_key" in saved_state and static_kv:
+            if "prev_key" in saved_state:
                 # previous time steps are cached - no need to recompute key and value if they are static
-                key = None
+                if static_kv:
+                    key = None
         else:
             saved_state = None
             layer_state = {}
+
         q = self.q_proj(query) * self.scaling
         if static_kv:
             if key is None:
@@ -634,22 +622,12 @@ class SelfAttention(nn.Module):
         else:
             k = self.k_proj(query)
             v = self.v_proj(query)
-        if False and self.encoder_decoder_attention and self.mode == "parlai":
-            q = self.prepare_head(q)
-        else:
-            q = self._shape(q, tgt_len, bsz)
+
+        q = self._shape(q, tgt_len, bsz)
         if k is not None:
-            if False and self.encoder_decoder_attention and self.mode == "parlai":
-                k = self.prepare_head(k)
-            else:
-                k = self._shape(k, -1, bsz)
+            k = self._shape(k, -1, bsz)
         if v is not None:
-            if False and self.encoder_decoder_attention and self.mode == "parlai":
-                v = self.prepare_head(v)
-            else:
-                v = self._shape(v, -1, bsz)
-            # v = self.prepare_head(v)
-            # v = self._shape(v, -1, bsz)
+            v = self._shape(v, -1, bsz)
 
         if saved_state is not None:
             k, v, key_padding_mask = self._use_saved_state(k, v, saved_state, key_padding_mask, static_kv, bsz)
@@ -663,11 +641,7 @@ class SelfAttention(nn.Module):
 
         assert k is not None
         src_len = k.size(1)
-        print_tensor("bart q", q)
-        print_tensor("bart k", k)
-        # assert q.shape[:2] == k.shape, f'q and k shape should match. got q:{q.shape}, k: {k.shape}'
         attn_weights = torch.bmm(q, k.transpose(1, 2))
-        print_tensor("bart attn_weights", attn_weights)
         assert attn_weights.size() == (bsz * self.num_heads, tgt_len, src_len)
 
         if attn_mask is not None:
@@ -683,7 +657,6 @@ class SelfAttention(nn.Module):
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
             reshaped = key_padding_mask.unsqueeze(1).unsqueeze(2)
             attn_weights = attn_weights.masked_fill(reshaped, float("-inf"))
-            print_tensor("key_padding_mask", key_padding_mask)
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
         attn_weights = F.softmax(attn_weights, dim=-1)
         attn_probs = F.dropout(attn_weights, p=self.dropout, training=self.training,)
@@ -721,18 +694,37 @@ class SelfAttention(nn.Module):
                 v = torch.cat([prev_value, v], dim=1)
         assert k is not None and v is not None
         prev_key_padding_mask: Optional[Tensor] = saved_state.get("prev_key_padding_mask", None)
+        key_padding_mask = self._cat_prev_key_padding_mask(
+            key_padding_mask, prev_key_padding_mask, bsz, k.size(1), static_kv
+        )
+        return k, v, key_padding_mask
+
+    @staticmethod
+    def _cat_prev_key_padding_mask(
+        key_padding_mask: Optional[Tensor],
+        prev_key_padding_mask: Optional[Tensor],
+        batch_size: int,
+        src_len: int,
+        static_kv: bool,
+    ) -> Optional[Tensor]:
+        # saved key padding masks have shape (bsz, seq_len)
         if prev_key_padding_mask is not None:
             if static_kv:
                 new_key_padding_mask = prev_key_padding_mask
             else:
                 new_key_padding_mask = torch.cat([prev_key_padding_mask, key_padding_mask], dim=1)
-        else:
-            new_key_padding_mask = key_padding_mask
 
-        # key_padding_mask = self._cat_prev_key_padding_mask(
-        #     key_padding_mask, prev_key_padding_mask, bsz, k.size(1), static_kv
-        # )
-        return k, v, new_key_padding_mask
+        elif key_padding_mask is not None:
+            filler = torch.zeros(
+                batch_size,
+                src_len - key_padding_mask.size(1),
+                dtype=key_padding_mask.dtype,
+                device=key_padding_mask.device,
+            )
+            new_key_padding_mask = torch.cat([filler, key_padding_mask], dim=1)
+        else:
+            new_key_padding_mask = prev_key_padding_mask
+        return new_key_padding_mask
 
 
 class BartClassificationHead(nn.Module):
