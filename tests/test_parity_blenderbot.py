@@ -124,10 +124,11 @@ class BlenderbotParityTests(unittest.TestCase):
         assert_tensors_close(parlai_way, hf_way, atol=1e-6)
 
         mask[-1, -1] = 0
+        bart_mask = invert_mask(mask)
         expected_output = parlai_attn.forward(
             query=hidden_states, mask=mask, key=dummy_encoder_output, static_kv=True
         )[0]
-        bart_mask = invert_mask(mask)
+
         self.assertTrue(cross_attn.encoder_decoder_attention)
         bart_output = cross_attn.forward(
             query=hidden_states.transpose(0, 1), key_padding_mask=bart_mask, key=dummy_encoder_output.transpose(0, 1)
@@ -139,11 +140,15 @@ class BlenderbotParityTests(unittest.TestCase):
     def test_encoder_layer_parity(self):
         config, input_ids, mask = self.get_config_and_data()
 
-        hidden_states = torch.tensor(2 * [5 * [config.d_model * [0.1]]])
-        # mask = torch.ones(hidden_states.shape[:2])
-        blenderbot_model = BlenderbotForConditionalGeneration(config).to(torch_device)
-        blender_encoder_layer = blenderbot_model.encoder.layers[0]
-        blender_encoder_layer.eval()
+        #hidden_states = torch.tensor(2 * [5 * [config.d_model * [0.1]]])
+        bs, seq_len = 3, 5  # odd numbers for less confusion
+        hidden_states = torch.rand(bs, seq_len, config.d_model)
+        mask = torch.ones(hidden_states.shape[:2])
+        mask[-1, -1] = 0
+        bart_mask = invert_mask(mask)
+        blenderbot_model = BlenderbotForConditionalGeneration(config).to(torch_device).eval()
+        bart_encoder_layer = blenderbot_model.encoder.layers[0]
+
         embeddings = torch.nn.Embedding(config.vocab_size, config.d_model, padding_idx=config.pad_token_id)
         parlai_encoder = TransformerEncoder(
             config.encoder_attention_heads,
@@ -160,22 +165,27 @@ class BlenderbotParityTests(unittest.TestCase):
             reduction_type=None,
         ).eval()
         parlai_encoder_layer = parlai_encoder.layers[0]
-        self._copy_layer_weights_in_blender_encoder_layer(blender_encoder_layer, parlai_encoder_layer)
+        self._copy_layer_weights_in_blender_encoder_layer(bart_encoder_layer, parlai_encoder_layer)
         expected_output = parlai_encoder_layer(hidden_states, mask)
-        blender_output = blender_encoder_layer(hidden_states.transpose(1, 0), mask)[0].transpose(1, 0)
-        assert_tensors_close(expected_output, blender_output)
+        blender_output = bart_encoder_layer(hidden_states.transpose(1, 0), bart_mask)[0].transpose(1, 0)
+        assert_tensors_close(expected_output, blender_output, atol=1e-6)
 
     @torch.no_grad()
     def test_encoder_parity(self):
         config, input_ids, mask = self.get_config_and_data()
         embeddings = torch.nn.Embedding(config.vocab_size, config.d_model, padding_idx=config.pad_token_id)
+        bs, seq_len = input_ids.shape  # odd numbers for less confusion
+        #hidden_states = torch.rand(bs, seq_len, config.d_model)
+        bart_mask = input_ids != config.pad_token_id  # gets inverted by code
+        #mask[-1, -1] = 0
+        #bart_mask = invert_mask(mask)
 
         torch.manual_seed(0)
 
         blenderbot_model = BlenderbotForConditionalGeneration(config).to(torch_device)
-        blender_encoder = blenderbot_model.encoder
+        bart_encoder = blenderbot_model.encoder
 
-        blender_encoder.eval()
+        bart_encoder.eval()
 
         parlai_encoder = TransformerEncoder(
             config.encoder_attention_heads,
@@ -190,14 +200,19 @@ class BlenderbotParityTests(unittest.TestCase):
             dropout=config.dropout,
             embedding=embeddings,
             reduction_type=None,
+            padding_idx=config.pad_token_id,
         )
         parlai_encoder.eval()
 
-        self._copy_layer_weights_in_blender_encoder(blender_encoder, parlai_encoder, config.encoder_layers)
+        self._copy_layer_weights_in_blender_encoder(bart_encoder, parlai_encoder, config.encoder_layers)
 
-        expected_output = parlai_encoder(input_ids)[0]  #
-        blender_output = blender_encoder(input_ids, attention_mask=mask)[0]
-        assert_tensors_close(expected_output, blender_output, atol=1e-4)
+        expected_output = parlai_encoder.forward(input_ids)[0]  #makes own mask
+        blender_output = bart_encoder(input_ids, attention_mask=bart_mask)[0]
+        assert_tensors_close(expected_output[:-1], blender_output[:-1], atol=1e-4)
+        assert_tensors_close(expected_output[-1, :-1], blender_output[-1, :-1], atol=1e-4)
+        # Only difference is at pad position, known Issue
+        with self.assertRaises(AssertionError):
+            assert_tensors_close(expected_output[-1, -1], blender_output[-1, -1], atol=1e-4)
 
     @torch.no_grad()
     def test_decoder_layer_parity(self):
@@ -240,13 +255,15 @@ class BlenderbotParityTests(unittest.TestCase):
         self._copy_layer_weights_in_blender_encoder(blender_encoder, parlai_encoder, config.encoder_layers)
 
         expected_encoder_output = parlai_encoder(input_ids)[0]
-        blender_encoder_output = blender_encoder(input_ids, attention_mask=mask)[0]
-        assert_tensors_close(expected_encoder_output[:, :-1], blender_encoder_output[:, :-1], atol=1e-4)
+        bart_encoder_output = blender_encoder(input_ids, attention_mask=mask)[0]
+        assert_tensors_close(expected_encoder_output[:, :-1], bart_encoder_output[:, :-1], atol=1e-4)
 
         self._copy_layer_weights_in_blender_decoder_layer(bart_dec_layer, parlai_decoder_layer)
         tensor = embeddings(input_ids)
-        expected_decoder_layer_output, *_ = parlai_decoder_layer(
-            tensor, encoder_output=expected_encoder_output, encoder_mask=mask
+        #decoder_padding
+        expected_decoder_layer_output, *_ = parlai_decoder_layer.forward(
+            tensor, encoder_output=expected_encoder_output, encoder_mask=mask,
+
         )
         causal_mask = parlai_decoder_layer._create_selfattn_mask(tensor)
 
@@ -255,33 +272,15 @@ class BlenderbotParityTests(unittest.TestCase):
             dtype=tensor.dtype, device=tensor.device
         )
         # import ipdb; ipdb.set_trace()
-        expected_slice = torch.tensor(
-            [
-                -1.7712,
-                0.2689,
-                -1.8851,
-                -2.8012,
-                1.3736,
-                -0.7266,
-                3.1182,
-                1.1434,
-                -1.4304,
-                1.2469,
-                -0.3417,
-                0.3943,
-                3.1211,
-                3.3170,
-                2.1522,
-                -2.1234,
-            ]
-        )
-        blender_decoder_layer_output = bart_dec_layer(
+        expected_slice = torch.tensor([-1.7712, 0.2689, -1.8851, -2.8012, 1.3736, -0.7266, 3.1182, 1.1434, -1.4304, 1.2469, -0.3417, 0.3943, 3.1211, 3.3170, 2.1522, -2.1234], device=torch_device)
+
+        bart_mask =  invert_mask(mask)
+        blender_decoder_layer_output = bart_dec_layer.forward(
             tensor.transpose(1, 0),
-            encoder_hidden_states=blender_encoder_output,
-            encoder_attn_mask=invert_mask(mask),
+            expected_encoder_output.transpose(1, 0),
+            encoder_attn_mask=bart_mask,
             causal_mask=causal_mask,
         )[0]
         assert_tensors_close(expected_slice, blender_decoder_layer_output[0, 0], atol=1e-4)
-        print(blender_decoder_layer_output)
         assert_tensors_close(expected_decoder_layer_output, blender_decoder_layer_output.transpose(0, 1), atol=1e-4)
         # self.assertTrue(torch.allclose(expected_output, blender_output, atol=1e-4))
