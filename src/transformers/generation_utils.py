@@ -632,10 +632,13 @@ class GenerationMixin:
         done = [False for _ in range(batch_size)]
 
         while cur_len < max_length:
+            print(f'TFMR: step {cur_len}/ {max_length}')
             model_inputs = self.prepare_inputs_for_generation(
                 input_ids, past=past, attention_mask=attention_mask, use_cache=use_cache, **model_specific_kwargs
             )
+            print(f'model_inputs: {model_inputs}')
             outputs = self(**model_inputs)  # (batch_size * num_beams, cur_len, vocab_size)
+            import ipdb; ipdb.set_trace()
             next_token_logits = outputs[0][:, -1, :]  # (batch_size * num_beams, vocab_size)
 
             # if model has past, then set the past variable to speed up decoding
