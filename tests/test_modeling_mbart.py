@@ -4,7 +4,7 @@ from transformers import is_torch_available
 from transformers.file_utils import cached_property
 from transformers.testing_utils import require_torch, slow, torch_device
 
-from .test_modeling_bart import TOLERANCE, assert_tensors_close, _long_tensor
+from .test_modeling_bart import TOLERANCE, _long_tensor, assert_tensors_close
 
 
 if is_torch_available():

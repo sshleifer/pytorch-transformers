@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from transformers.modeling_bart import SelfAttention
+
 from .configuration_blenderbot import BlenderbotConfig
 from .file_utils import add_start_docstrings_to_callable
 from .modeling_bart import (
@@ -18,21 +20,23 @@ from .modeling_bart import (
 
 BLENDERBOT_PRETRAINED_MODEL_ARCHIVE_LIST = ["sshleifer/blenderbot-3B"]
 
-from transformers.modeling_bart import SelfAttention
+
+
 class BlenderbotDecoder(BartDecoder):
 
     """
     This class inherits BartDecoder. Please check the superclass for documentation and usage examples.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for layer in self.layers:
-            #func_type = type(layer.encoder_attn._shape)
-            layer.encoder_attn.mode = 'parlai'
+            # func_type = type(layer.encoder_attn._shape)
+            layer.encoder_attn.mode = "parlai"
             # layer.encoder_attn = BlenderbotCrossAttention(bart_attn.embed_dim, bart_attn.num_heads,
             #                                                      dropout=bart_attn.dropout, bias=True,
             #                                                      encoder_decoder_attention=True)
-            #layer.encoder_attn._shape = func_type(blenderbot_shape, layer, SelfAttention)
+            # layer.encoder_attn._shape = func_type(blenderbot_shape, layer, SelfAttention)
 
 
 class PretrainedBlenderbotModel(PretrainedBartModel):
@@ -44,6 +48,7 @@ class PretrainedBlenderbotModel(PretrainedBartModel):
 
     config_class = BlenderbotConfig
     base_model_prefix = ""
+
 
 BLENDERBOT_START_DOCSTRING = r"""
     This model is a PyTorch `torch.nn.Module <https://pytorch.org/docs/stable/nn.html#torch.nn.Module>`_ sub-class.
@@ -186,5 +191,3 @@ class BlenderbotForConditionalGeneration(PretrainedBlenderbotModel):
 
         past = ((new_enc_out, new_enc_mask), reordered_past)
         return past
-
-

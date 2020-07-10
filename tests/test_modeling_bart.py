@@ -395,14 +395,20 @@ class BartHeadTests(unittest.TestCase):
 
 def assert_tensors_close(a, b, atol=1e-12, prefix=""):
     """If tensors not close, or a and b aren't both tensors, raise a nice Assertion error."""
+
     if a is None and b is None:
         return True
+    assert a.shape == b.shape
     try:
         if torch.allclose(a, b, atol=atol):
             return True
         raise
     except Exception:
-        msg = "{} != {}".format(a, b)
+        pct_different = (torch.gt((a - b).abs(), atol)).float().mean().item()
+        if a.numel() > 100:
+            msg = f"tensor values are {pct_different:.1%} percent different."
+        else:
+            msg = f"{a} != {b}"
         if prefix:
             msg = prefix + ": " + msg
         raise AssertionError(msg)

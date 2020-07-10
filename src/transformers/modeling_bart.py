@@ -371,14 +371,20 @@ class DecoderLayer(nn.Module):
     ):
         residual = x
 
-
         if layer_state is None:
             layer_state = {}
         if self.normalize_before:
             x = self.self_attn_layer_norm(x)
         # Self Attention
 
-        x, self_attn_weights = self.self_attn(query=x, key=x, layer_state=layer_state, key_padding_mask=decoder_padding_mask, attn_mask=causal_mask, output_attentions=output_attentions,)
+        x, self_attn_weights = self.self_attn(
+            query=x,
+            key=x,
+            layer_state=layer_state,
+            key_padding_mask=decoder_padding_mask,
+            attn_mask=causal_mask,
+            output_attentions=output_attentions,
+        )
 
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
@@ -390,7 +396,9 @@ class DecoderLayer(nn.Module):
         assert self.encoder_attn.cache_key != self.self_attn.cache_key
         if self.normalize_before:
             x = self.encoder_attn_layer_norm(x)
-        x, _ = self.encoder_attn(query=x, key=encoder_hidden_states, key_padding_mask=encoder_attn_mask, layer_state=layer_state,)
+        x, _ = self.encoder_attn(
+            query=x, key=encoder_hidden_states, key_padding_mask=encoder_attn_mask, layer_state=layer_state,
+        )
         # parlai: x[0, 0] = tensor([-0.2172, 0.6419, -0.7223, -0.0189, 1.0938, 0.5338, 0.8013, 0.5323, -0.4395, -0.3531, -0.2075, 0.4068, 0.2357, 1.0790, 0.1742, -0.9198]
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
@@ -547,12 +555,17 @@ def _reorder_buffer(attn_cache, new_order):
         if input_buffer_k is not None:
             attn_cache[k] = input_buffer_k.index_select(0, new_order)
     return attn_cache
+
+
 def print_tensor(msg, x):
-    print(f'{msg}:  {x.shape} {x[0,0]}')
+    print(f"{msg}:  {x.shape} {x[0,0]}")
+
 
 class SelfAttention(nn.Module):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
-    mode = 'bart'
+
+    mode = "bart"
+
     def __init__(
         self,
         embed_dim,
@@ -585,11 +598,7 @@ class SelfAttention(nn.Module):
         # output is [batch_size * n_heads, seq_len, dim_per_head]
         bsz, seq_len, _ = kout.size()
         kout = kout.view(bsz, seq_len, self.num_heads, self.head_dim)
-        kout = (
-            kout.transpose(1, 2)
-            .contiguous()
-            .view(bsz * self.num_heads, seq_len, self.head_dim)
-        )
+        kout = kout.transpose(1, 2).contiguous().view(bsz * self.num_heads, seq_len, self.head_dim)
         return kout
 
     def forward(
@@ -625,26 +634,25 @@ class SelfAttention(nn.Module):
         else:
             k = self.k_proj(query)
             v = self.v_proj(query)
-        if self.encoder_decoder_attention and self.mode == 'parlai':
+        if False and self.encoder_decoder_attention and self.mode == "parlai":
             q = self.prepare_head(q)
         else:
             q = self._shape(q, tgt_len, bsz)
         if k is not None:
-            if self.encoder_decoder_attention and self.mode=='parlai':
+            if False and self.encoder_decoder_attention and self.mode == "parlai":
                 k = self.prepare_head(k)
             else:
                 k = self._shape(k, -1, bsz)
         if v is not None:
-            if self.encoder_decoder_attention and self.mode=='parlai':
+            if False and self.encoder_decoder_attention and self.mode == "parlai":
                 v = self.prepare_head(v)
             else:
                 v = self._shape(v, -1, bsz)
-            #v = self.prepare_head(v)
-            #v = self._shape(v, -1, bsz)
+            # v = self.prepare_head(v)
+            # v = self._shape(v, -1, bsz)
 
         if saved_state is not None:
             k, v, key_padding_mask = self._use_saved_state(k, v, saved_state, key_padding_mask, static_kv, bsz)
-
 
         # Update cache
         layer_state[self.cache_key] = {
@@ -655,11 +663,11 @@ class SelfAttention(nn.Module):
 
         assert k is not None
         src_len = k.size(1)
-        print_tensor('bart q', q)
-        print_tensor('bart k', k)
+        print_tensor("bart q", q)
+        print_tensor("bart k", k)
         # assert q.shape[:2] == k.shape, f'q and k shape should match. got q:{q.shape}, k: {k.shape}'
         attn_weights = torch.bmm(q, k.transpose(1, 2))
-        print_tensor('bart attn_weights', attn_weights)
+        print_tensor("bart attn_weights", attn_weights)
         assert attn_weights.size() == (bsz * self.num_heads, tgt_len, src_len)
 
         if attn_mask is not None:
@@ -675,6 +683,7 @@ class SelfAttention(nn.Module):
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
             reshaped = key_padding_mask.unsqueeze(1).unsqueeze(2)
             attn_weights = attn_weights.masked_fill(reshaped, float("-inf"))
+            print_tensor("key_padding_mask", key_padding_mask)
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
         attn_weights = F.softmax(attn_weights, dim=-1)
         attn_probs = F.dropout(attn_weights, p=self.dropout, training=self.training,)
