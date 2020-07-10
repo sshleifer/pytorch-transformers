@@ -70,6 +70,7 @@ class BartConfig(PretrainedConfig):
         normalize_embedding=True,
         static_position_embeddings=False,
         add_bias_logits=False,
+        extra_layer_norm=False,
         **common_kwargs
     ):
         r"""
@@ -111,6 +112,7 @@ class BartConfig(PretrainedConfig):
         self.normalize_embedding = normalize_embedding  # True for mbart, False otherwise
         self.normalize_before = normalize_before  # combo of fairseq's encoder_ and decoder_normalize_before
         self.add_final_layer_norm = add_final_layer_norm
+        self.extra_layer_norm = extra_layer_norm # True for mbart
 
         # Params introduced for Marian
         self.add_bias_logits = add_bias_logits
