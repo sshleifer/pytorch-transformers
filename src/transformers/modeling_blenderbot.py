@@ -18,36 +18,30 @@ from .modeling_bart import (
 )
 
 
-BLENDERBOT_PRETRAINED_MODEL_ARCHIVE_LIST = ["sshleifer/blenderbot-3B"]
+# TODO: delete this
+BLENDERBOT_PRETRAINED_MODEL_ARCHIVE_LIST = ["sshleifer/blenderbot-3B", "sshleifer/blenderbot-90M"]
 
 
 
-class BlenderbotDecoder(BartDecoder):
+# class BlenderbotDecoder(BartDecoder):
+#
+#     """
+#     This class inherits BartDecoder. Please check the superclass for documentation and usage examples.
+#     """
+#
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         for layer in self.layers:
+#             # func_type = type(layer.encoder_attn._shape)
+#             layer.encoder_attn.mode = "parlai"
+#             # layer.encoder_attn = BlenderbotCrossAttention(bart_attn.embed_dim, bart_attn.num_heads,
+#             #                                                      dropout=bart_attn.dropout, bias=True,
+#             #                                                      encoder_decoder_attention=True)
+#             # layer.encoder_attn._shape = func_type(blenderbot_shape, layer, SelfAttention)
 
-    """
-    This class inherits BartDecoder. Please check the superclass for documentation and usage examples.
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for layer in self.layers:
-            # func_type = type(layer.encoder_attn._shape)
-            layer.encoder_attn.mode = "parlai"
-            # layer.encoder_attn = BlenderbotCrossAttention(bart_attn.embed_dim, bart_attn.num_heads,
-            #                                                      dropout=bart_attn.dropout, bias=True,
-            #                                                      encoder_decoder_attention=True)
-            # layer.encoder_attn._shape = func_type(blenderbot_shape, layer, SelfAttention)
 
 
-class PretrainedBlenderbotModel(PretrainedBartModel):
-    """
-        An abstract class to handle weights initialization and
-        a simple interface for downloading and loading pretrained models.
-        it inherits from PretrainedBartModel. Please check the superclass for the documentation and usage examples
-    """
 
-    config_class = BlenderbotConfig
-    base_model_prefix = ""
 
 
 BLENDERBOT_START_DOCSTRING = r"""
@@ -82,13 +76,15 @@ BLENDERBOT_INPUTS_DOCSTRING = r"""
 """
 
 
-class BlenderbotForConditionalGeneration(PretrainedBlenderbotModel):
+class BlenderbotForConditionalGeneration(PretrainedBartModel):
+    config_class = BlenderbotConfig
+    base_model_prefix = "."
     def __init__(self, config: BlenderbotConfig):
         super().__init__(config)
         # self.config = config
         self.shared = nn.Embedding(config.vocab_size, config.d_model, config.pad_token_id)
         self.encoder = BartEncoder(config, self.shared)
-        self.decoder = BlenderbotDecoder(config, self.shared)
+        self.decoder = BartDecoder(config, self.shared)
         self.init_weights()
 
     @add_start_docstrings_to_callable(BLENDERBOT_INPUTS_DOCSTRING)
