@@ -395,6 +395,7 @@ class DecoderLayer(nn.Module):
             layer_state = {}
         if self.variant == 'prelayernorm':
             x = self.self_attn_layer_norm(x)  # norm1 in parlai
+            print_tensor('preln: normed1', x)
         # Self Attention
         x, self_attn_weights = self.self_attn(
             query=x,
@@ -414,6 +415,7 @@ class DecoderLayer(nn.Module):
         assert self.encoder_attn.cache_key != self.self_attn.cache_key
         if self.variant == 'prelayernorm':
             x = self.encoder_attn_layer_norm(x)  # aliases: encoder_attn_layer_norm, norm 2
+            print_tensor('preln: normed2', x)
         x, _ = self.encoder_attn(
             query=x,
             key=encoder_hidden_states,
@@ -429,6 +431,7 @@ class DecoderLayer(nn.Module):
         residual = x
         if self.variant == 'prelayernorm':
             x = self.final_layer_norm(x)
+            print_tensor('preln: normed3', x)
         #if self.normalize_before:
             #x = self.final_layer_norm(x)
         x = self.activation_fn(self.fc1(x))
@@ -558,7 +561,7 @@ class BartDecoder(nn.Module):
 
             layer_state = decoder_cached_states[idx] if decoder_cached_states is not None else None
 
-            x, layer_self_attn, layer_past = decoder_layer(
+            x, layer_self_attn, layer_past = decoder_layer.forward(
                 x,
                 encoder_hidden_states,
                 encoder_attn_mask=encoder_padding_mask,
@@ -572,10 +575,11 @@ class BartDecoder(nn.Module):
                 next_decoder_cache.append(layer_past.copy())
 
             if self.layer_norm and (idx == len(self.layers) - 1):  # last layer of mbart
-                x = self.layer_norm(x)
-            elif self.variant == 'prelayernorm':
-                x = self.layernorm_embedding(x)
-                print_tensor('final norm  (preln)', x)
+                x = self.layer_norm(x)  # norm3
+        if self.variant == 'prelayernorm':
+            print_tensor('prelaynorm/norm_emb', x)
+            x = self.layernorm_embedding(x)  #norm emb
+            print_tensor('final norm  (preln)', x)
             if output_attentions:
                 all_self_attns += (layer_self_attn,)
 
