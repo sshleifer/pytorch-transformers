@@ -167,6 +167,7 @@ class Blenderbot3BIntegrationTests(AbstractBlenderBotIntegrationTests):
         self.assertEqual(output.size(), expected_shape)
 
     @torch.no_grad()
+    @slow
     def test_3bsamgen(self):
         input_ids = _long_tensor([[1384]])  # sam
 
@@ -181,6 +182,7 @@ class Blenderbot3BIntegrationTests(AbstractBlenderBotIntegrationTests):
         self.assertListEqual(expected_tokens, generated_utterances)
 
     @torch.no_grad()
+    @slow
     def test_3bsam_forward(self):
         input_ids = _long_tensor([[1384]])  # sam
         ys = torch.tensor([[1, 49, 15, 286, 474, 10, 1384, 5186, 20, 21, 8, 17,
