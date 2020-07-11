@@ -552,7 +552,8 @@ class BartDecoder(nn.Module):
         next_decoder_cache = []
         for idx, decoder_layer in enumerate(self.layers):
             # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
-            print(f'Bart: input to decoder layer {idx}: shape: {x.shape}, {x[0, 0, :10]}')
+            if idx < 3 or idx > 22:
+                print(f'Bart: input to decoder layer {idx}: shape: {x.shape}, {x[0, 0, :10]}')
             if output_hidden_states:
                 all_hidden_states += (x,)
             dropout_probability = random.uniform(0, 1)
