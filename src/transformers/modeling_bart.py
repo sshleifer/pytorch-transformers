@@ -428,7 +428,7 @@ class DecoderLayer(nn.Module):
         # Fully Connected
         residual = x
         if self.variant == 'prelayernorm':
-            x = self.final_layer_norm(x, self.norm3)
+            x = self.final_layer_norm(x)
         #if self.normalize_before:
             #x = self.final_layer_norm(x)
         x = self.activation_fn(self.fc1(x))
