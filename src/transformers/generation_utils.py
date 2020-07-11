@@ -706,7 +706,6 @@ class GenerationMixin:
                 next_scores, next_tokens = torch.topk(next_scores, 2 * num_beams, dim=1, largest=True, sorted=True)
             print(f'next_scores: {next_scores}')
             assert next_scores.size() == next_tokens.size() == (batch_size, 2 * num_beams)
-            import ipdb; ipdb.set_trace()
 
             # next batch beam content
             next_batch_beam = []

@@ -148,10 +148,13 @@ class Blenderbot3BIntegrationTests(AbstractBlenderBotIntegrationTests):
         tgt_text = ["I'm not sure, but I do know that social anxiety disorder is a mental disorder"]
         #model_inputs = self.tokenizer(src_text, return_tensors='pt').to(torch_device)
         #generated_utterances = self.model.generate(**model_inputs)
-        input_ids = _long_tensor([[1384]])  # sam
+        input_ids = _long_tensor([[268, 343,   2]])  # sam
 
-        generated_utterances = self.model.generate(input_ids)
-        self.assertListEqual(tgt_text, self.tokenizer.batch_decode(generated_utterances))
+        generated_ids = self.model.generate(input_ids).tolist()[0]
+        expected_ids = [1, 5502, 315, 265, 848, 1356, 21, 452,
+         1361, 472, 90, 415,
+         803, 556, 9, 302, 485, 72, 491, 317, 21, 2]
+        self.assertListEqual(expected_ids, generated_ids)
 
 
 
