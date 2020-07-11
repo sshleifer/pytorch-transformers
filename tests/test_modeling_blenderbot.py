@@ -146,25 +146,14 @@ class Blenderbot3BIntegrationTests(AbstractBlenderBotIntegrationTests):
             "Social anxiety\nWow, I am never shy. Do you have anxiety?\nYes. I end up sweating and blushing and feel like i'm going to throw up.\nand why is that?"
         ]
         tgt_text = ["I'm not sure, but I do know that social anxiety disorder is a mental disorder"]
-        model_inputs = self.tokenizer(src_text, return_tensors='pt').to(torch_device)
-        generated_utterances = self.model.generate(**model_inputs)
+        #model_inputs = self.tokenizer(src_text, return_tensors='pt').to(torch_device)
+        #generated_utterances = self.model.generate(**model_inputs)
+        input_ids = _long_tensor([[1384]])  # sam
+
+        generated_utterances = self.model.generate(input_ids)
         self.assertListEqual(tgt_text, self.tokenizer.batch_decode(generated_utterances))
 
-    @unittest.skip('broken')
-    def test_loss_same_as_parlai_3B(self):
-        config, input_ids, mask, batch_size = self.get_config_data()
-        inputs_dict = {"input_ids": input_ids, "attention_mask": mask}
-        src_text = [
-            "Social anxiety\nWow, I am never shy. Do you have anxiety?\nYes. I end up sweating and blushing and feel "
-            "like i'm going to throw up.\nand why is that?"
-        ]
-        tgt_text = ["I'm not sure, but I do know that social anxiety disorder is a mental disorder"]
-        model_inputs = self.tokenizer(src_text, return_tensors='pt').to(torch_device)
 
-        with torch.no_grad():
-            output = self.model(**inputs_dict)[0]
-        expected_shape = torch.Size((batch_size, input_ids.size(1), self.model.config.vocab_size))
-        self.assertEqual(output.size(), expected_shape)
 
     @torch.no_grad()
     @slow
