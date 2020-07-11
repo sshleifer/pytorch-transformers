@@ -205,6 +205,7 @@ class EncoderLayer(nn.Module):
         self.self_attn = SelfAttention(
             self.embed_dim, config.encoder_attention_heads, dropout=config.attention_dropout,
         )
+        self.variant =config.variant
         self.normalize_before = config.normalize_before
         self.self_attn_layer_norm = LayerNorm(self.embed_dim)
         self.dropout = config.dropout
@@ -227,25 +228,25 @@ class EncoderLayer(nn.Module):
             encoded output of shape `(seq_len, batch, embed_dim)`
         """
         residual = x
-        if self.normalize_before:
+        if self.variant == 'prelayernorm':
             x = self.self_attn_layer_norm(x)
         x, attn_weights = self.self_attn(
             query=x, key=x, key_padding_mask=encoder_padding_mask, output_attentions=output_attentions
         )
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
-        if not self.normalize_before:
+        if self.variant != 'prelayernorm':
             x = self.self_attn_layer_norm(x)
 
         residual = x
-        if self.normalize_before:
+        if self.variant == 'prelayernorm':
             x = self.final_layer_norm(x)
         x = self.activation_fn(self.fc1(x))
         x = F.dropout(x, p=self.activation_dropout, training=self.training)
         x = self.fc2(x)
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
-        if not self.normalize_before:
+        if self.variant != 'prelayernorm':
             x = self.final_layer_norm(x)
         return x, attn_weights
 
@@ -269,7 +270,7 @@ class BartEncoder(nn.Module):
         self.embed_scale = math.sqrt(embed_dim) if config.scale_embedding else 1.0
         self.padding_idx = embed_tokens.padding_idx
         self.max_source_positions = config.max_position_embeddings
-
+        self.variant = config.variant
         self.embed_tokens = embed_tokens
         if config.static_position_embeddings:
             self.embed_positions = SinusoidalPositionalEmbedding(
@@ -281,6 +282,8 @@ class BartEncoder(nn.Module):
             )
         self.layers = nn.ModuleList([EncoderLayer(config) for _ in range(config.encoder_layers)])
         self.layernorm_embedding = LayerNorm(embed_dim) if config.normalize_embedding else nn.Identity()
+        if self.variant in ('xlm', 'prelayernorm', 'bart'):
+            assert config.normalize_embedding
         # mbart has one extra layer_norm
         self.layer_norm = LayerNorm(config.d_model) if config.extra_layer_norm else None
 
@@ -314,7 +317,9 @@ class BartEncoder(nn.Module):
         # print_tensor('embed_pos', embed_pos)
         # print_tensor('sum', x)
         print_tensor('summed', x)
-        x = self.layernorm_embedding(x)
+
+        if self.variant == 'xlm' or self.variant == 'bart':
+            x = self.layernorm_embedding(x)
         print_tensor('normed', x)
         x = F.dropout(x, p=self.dropout, training=self.training)
         #import ipdb; ipdb.set_trace()
@@ -337,8 +342,8 @@ class BartEncoder(nn.Module):
             if output_attentions:
                 all_attentions.append(attn)
 
-        if self.layer_norm:
-            x = self.layer_norm(x)
+        if self.variant == 'prelayernorm':
+            x = self.layernorm_embedding(x)
         if output_hidden_states:
             encoder_states.append(x)
 
@@ -451,6 +456,7 @@ class BartDecoder(nn.Module):
         super().__init__()
         self.dropout = config.dropout
         self.layerdrop = config.decoder_layerdrop
+        self.variant = config.variant
         self.padding_idx = embed_tokens.padding_idx
         self.max_target_positions = config.max_position_embeddings
         self.embed_scale = math.sqrt(config.d_model) if config.scale_embedding else 1.0
@@ -466,7 +472,10 @@ class BartDecoder(nn.Module):
         self.layers = nn.ModuleList(
             [DecoderLayer(config) for _ in range(config.decoder_layers)]
         )  # type: List[DecoderLayer]
+
         self.layernorm_embedding = LayerNorm(config.d_model) if config.normalize_embedding else nn.Identity()
+        if self.variant in ('xlm', 'prelayernorm', 'bart'):
+            assert config.normalize_embedding
         self.layer_norm = LayerNorm(config.d_model) if config.add_final_layer_norm else None
 
     def forward(
