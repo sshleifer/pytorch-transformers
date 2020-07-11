@@ -219,8 +219,9 @@ class Blenderbot90MIntegrationTests(AbstractBlenderBotIntegrationTests):
         enc_out, enc_mask = encoder_states
         assert self.model.encoder_states.shape == enc_out.shape
         assert_tensors_close(self.model.encoder_states[:,:,3], enc_out[:,:,3], atol=1e-3)
-        desired_logits = torch.tensor([-0.1543, -4.0059, -1.1916, -4.3109, 3.9479, -0.6087, -0.0594], device=torch_device)
-        assert_tensors_close(desired_logits, scores[0, 0, 3:10], atol=1e-4)
+        assert_tensors_close(logits[0,0,3:10], scores[0, 0, 3:10], atol=1e-4)
+        desired_logits = torch.tensor([ 0.8507, -3.2680, -1.7374, -4.4045,  4.7195, -0.7223, -0.0766],
+                                      device=torch_device)
         assert_tensors_close(desired_logits, logits[0,0,3:10], atol=1e-4)
 
 from durbango import *

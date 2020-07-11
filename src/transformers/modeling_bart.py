@@ -513,8 +513,16 @@ class BartDecoder(nn.Module):
             # assert input_ids.ne(self.padding_idx).any()
 
         x = self.embed_tokens(input_ids) * self.embed_scale
+        print(f'self.embed_scale: {self.embed_scale}')
+        #inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
+        #embed_pos = self.embed_positions(input_ids)
+        print(f'scaled embeddings: {x[0, 0, :10]}')
+        x = self.layernorm_embedding(x)  # FUCK
+        print_tensor('normed', x)
+        print(f'embed pos: {positions[0, :10]}')
         x += positions
-        x = self.layernorm_embedding(x)
+        print_tensor('summed', x)
+
         x = F.dropout(x, p=self.dropout, training=self.training)
 
         # Convert to Bart output format: (seq_len, BS, model_dim) -> (BS, seq_len, model_dim)
@@ -527,6 +535,7 @@ class BartDecoder(nn.Module):
         next_decoder_cache = []
         for idx, decoder_layer in enumerate(self.layers):
             # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
+            print(f'Bart: input to decoder layer {idx}: shape: {x.shape}, {x[0, 0, :10]}')
             if output_hidden_states:
                 all_hidden_states += (x,)
             dropout_probability = random.uniform(0, 1)
@@ -553,6 +562,7 @@ class BartDecoder(nn.Module):
             if output_attentions:
                 all_self_attns += (layer_self_attn,)
 
+        # ALL BOOKKEEPING BELOW HERE
         # Convert to standard output format: (seq_len, BS, model_dim) -> (BS, seq_len, model_dim)
         all_hidden_states = [hidden_state.transpose(0, 1) for hidden_state in all_hidden_states]
         x = x.transpose(0, 1)

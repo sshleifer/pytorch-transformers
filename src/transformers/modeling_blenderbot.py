@@ -118,12 +118,15 @@ class BlenderbotForConditionalGeneration(PretrainedBartModel):
             output_hidden_states=output_hidden_states,
             use_cache=use_cache,
         )
+
         decoder_outputs: Tuple = _filter_out_falsey_values(decoder_outputs)
         assert isinstance(decoder_outputs[0], torch.Tensor)
         encoder_outputs: Tuple = _filter_out_falsey_values(encoder_outputs)
         outputs = decoder_outputs + encoder_outputs
         self.encoder_states = encoder_outputs[0]
+        print(f'latent:{outputs[0][0, 0, :10]}')
         scores = F.linear(outputs[0], self.shared.weight)
+        print(f'scores:{scores[0, 0, :10]}')
         outputs = (scores,) + outputs[1:]
         if labels is not None:
             loss_fc = nn.CrossEntropyLoss()
