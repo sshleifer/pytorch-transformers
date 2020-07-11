@@ -704,7 +704,7 @@ class SelfAttention(nn.Module):
             reshaped = key_padding_mask.unsqueeze(1).unsqueeze(2)
             attn_weights = attn_weights.masked_fill(reshaped, float("-inf"))
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
-        attn_weights = F.softmax(attn_weights, dim=-1)
+        attn_weights = F.softmax(attn_weights, dim=-1, dtype=torch.float).type_as(query)
         attn_probs = F.dropout(attn_weights, p=self.dropout, training=self.training,)
 
         assert v is not None
