@@ -632,15 +632,18 @@ class GenerationMixin:
         done = [False for _ in range(batch_size)]
 
         while cur_len < max_length:
-            print(f'TFMR: step {cur_len}/ {max_length}')
+            print('***')
+            print(f'Bart: step {cur_len}/ {max_length}')
             model_inputs = self.prepare_inputs_for_generation(
                 input_ids, past=past, attention_mask=attention_mask, use_cache=use_cache, **model_specific_kwargs
             )
-            print(f'model_inputs: {model_inputs}')
-            outputs = self(**model_inputs)  # (batch_size * num_beams, cur_len, vocab_size)
-            import ipdb; ipdb.set_trace()
-            next_token_logits = outputs[0][:, -1, :]  # (batch_size * num_beams, vocab_size)
+            di = model_inputs['decoder_input_ids']
+            print(f'decoder_inputs: {di}')
 
+            outputs = self(**model_inputs)  # (batch_size * num_beams, cur_len, vocab_size)
+
+            next_token_logits = outputs[0][:, -1, :]  # (batch_size * num_beams, vocab_size)
+            print(f'before softmax: {next_token_logits[0, 1384]}')
             # if model has past, then set the past variable to speed up decoding
             if self._use_cache(outputs, use_cache):
                 past = outputs[1]
@@ -651,6 +654,8 @@ class GenerationMixin:
                 )
 
             scores = F.log_softmax(next_token_logits, dim=-1)  # (batch_size * num_beams, vocab_size)
+            print(f'After softmax: {scores[0, 1384]}')
+            #import ipdb; ipdb.set_trace()
 
             scores = self.postprocess_next_token_scores(
                 scores=scores,
@@ -665,7 +670,7 @@ class GenerationMixin:
                 batch_size=batch_size,
                 num_beams=num_beams,
             )
-
+            print(f'After post process: {scores[0, :10]}')
             assert scores.shape == (batch_size * num_beams, vocab_size), "Shapes of scores: {} != {}".format(
                 scores.shape, (batch_size * num_beams, vocab_size)
             )
@@ -696,14 +701,12 @@ class GenerationMixin:
             else:
                 next_scores = scores + beam_scores[:, None].expand_as(scores)  # (batch_size * num_beams, vocab_size)
 
-                # re-organize to group the beam together (we are keeping top hypothesis accross beams)
-                next_scores = next_scores.view(
-                    batch_size, num_beams * vocab_size
-                )  # (batch_size, num_beams * vocab_size)
-
+                # re-organize to group the beam together (we are keeping top hypothesis across beams)
+                next_scores = next_scores.view(batch_size, num_beams * vocab_size)
                 next_scores, next_tokens = torch.topk(next_scores, 2 * num_beams, dim=1, largest=True, sorted=True)
-
+            print(f'next_scores: {next_scores}')
             assert next_scores.size() == next_tokens.size() == (batch_size, 2 * num_beams)
+            import ipdb; ipdb.set_trace()
 
             # next batch beam content
             next_batch_beam = []

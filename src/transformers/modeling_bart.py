@@ -105,7 +105,11 @@ BART_INPUTS_DOCSTRING = r"""
             If set to ``True``, the attentions tensors of all attention layers are returned. See ``attentions`` under returned tensors for more detail.
 """
 
-
+def print_tensor(msg, x):
+    if x.ndim == 3:
+        print(f'{msg}:  {x.shape} {x[0,0, :10]}')
+    else:
+        print(f'{msg}:  {x.shape} {x[0, 0]}')
 def invert_mask(attention_mask):
     """Turns 1->0, 0->1, False->True, True-> False"""
     assert attention_mask.dim() == 2
@@ -299,18 +303,24 @@ class BartEncoder(nn.Module):
         # check attention mask and invert
         if attention_mask is not None:
             attention_mask = invert_mask(attention_mask)
-
+        # print(f'self.embed_scale: {self.embed_scale}')
         inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
         embed_pos = self.embed_positions(input_ids)
         x = inputs_embeds + embed_pos
+        # print_tensor('inputs_embeds', inputs_embeds)
+        # print_tensor('embed_pos', embed_pos)
+        # print_tensor('sum', x)
         x = self.layernorm_embedding(x)
+        # print_tensor('normed', x)
         x = F.dropout(x, p=self.dropout, training=self.training)
+        #import ipdb; ipdb.set_trace()
 
         # B x T x C -> T x B x C
         x = x.transpose(0, 1)
 
         encoder_states, all_attentions = [], []
-        for encoder_layer in self.layers:
+        for i, encoder_layer in enumerate(self.layers):
+            print(f'Bart: input to encoder layer {i}: shape: {x.shape}, {x[0,0,:10]}')
             if output_hidden_states:
                 encoder_states.append(x)
             # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)

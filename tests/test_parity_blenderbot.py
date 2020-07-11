@@ -2,7 +2,7 @@ import unittest
 
 import torch
 
-from parlai.agents.transformer.modules import MultiHeadAttention, TransformerDecoderLayer, TransformerEncoder
+from parlai.agents.transformer.modules import MultiHeadAttention, TransformerDecoderLayer, TransformerEncoder, TransformerGeneratorModel
 from transformers import BlenderbotConfig, BlenderbotForConditionalGeneration
 from transformers.modeling_bart import SelfAttention, fill_with_neg_inf, invert_mask
 from transformers.testing_utils import require_torch, torch_device
@@ -205,6 +205,7 @@ class BlenderbotParityTests(unittest.TestCase):
         )
         parlai_encoder.eval()
 
+
         self._copy_layer_weights_in_blender_encoder(bart_encoder, parlai_encoder, config.encoder_layers)
 
         expected_output = parlai_encoder.forward(input_ids)[0]  #makes own mask
@@ -214,6 +215,8 @@ class BlenderbotParityTests(unittest.TestCase):
         # Only difference is at pad position, known Issue
         with self.assertRaises(AssertionError):
             assert_tensors_close(expected_output[-1, -1], blender_output[-1, -1], atol=1e-4)
+
+        # TODO(SS): decoder parity
 
     @torch.no_grad()
     def test_decoder_layer_parity(self):
@@ -285,3 +288,7 @@ class BlenderbotParityTests(unittest.TestCase):
         assert_tensors_close(expected_slice, blender_decoder_layer_output[0, 0], atol=1e-4)
         assert_tensors_close(expected_decoder_layer_output, blender_decoder_layer_output.transpose(0, 1), atol=1e-4)
         # self.assertTrue(torch.allclose(expected_output, blender_output, atol=1e-4))
+
+
+    def test_model_parity(self):
+        pass

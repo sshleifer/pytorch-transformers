@@ -165,7 +165,7 @@ class Blenderbot3BIntegrationTests(AbstractBlenderBotIntegrationTests):
             output = self.model(**inputs_dict)[0]
         expected_shape = torch.Size((batch_size, input_ids.size(1), self.model.config.vocab_size))
         self.assertEqual(output.size(), expected_shape)
-from .test_modeling_bart import _long_tensor
+from .test_modeling_bart import _long_tensor, assert_tensors_close
 class Blenderbot90MIntegrationTests(AbstractBlenderBotIntegrationTests):
     checkpoint_name = 'sshleifer/blenderbot-90M'
     tokenizer_cls = BlenderbotSmallTokenizer
@@ -193,12 +193,12 @@ class Blenderbot90MIntegrationTests(AbstractBlenderBotIntegrationTests):
 
         encoder_output = self.model.encoder(input_ids)[0]
         assert encoder_output.shape == (1,1,512)
-        assert encoder_output[0,0, :10] == [0.0968, -0.0934, -0.1364, 0.0500, -0.0424, 0.1258, -0.0073, 0.0329,
-         -0.1150, 0.0624]
+        expected_slice = torch.tensor([0.0968, -0.0934, -0.1364, 0.0500, -0.0424, 0.1258, -0.0073, 0.0329, -0.1150, 0.0624])
+        assert_tensors_close(encoder_output[0,0, :10], expected_slice, atol=1e-3)
 
-        generated_utterances = self.model.generate(input_ids).tolist()
-        expected_tokens =  [49,   15,  286,  474,   10, 1384, 5186,   20,   21,    8,
-          17,   50,  241, 1789,    6, 6299,    6,    9, 2147,    5]
+        generated_utterances = self.model.generate(input_ids, min_length=20, max_length=30).tolist()
+        expected_tokens = [1, 49, 15, 286, 474, 10, 1384, 5186, 20, 21, 8, 17,
+                           50, 241, 1789, 6, 6299, 6, 9, 2147, 5, 2]
         self.assertListEqual(expected_tokens, generated_utterances)
 
 

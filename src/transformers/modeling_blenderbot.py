@@ -75,8 +75,9 @@ BLENDERBOT_INPUTS_DOCSTRING = r"""
         labels: (:obj:`torch.LongTensor` of shape :obj:`(batch_size, sequence_length)`, `optional`, defaults to :obj:`None`):
 """
 
-
-class BlenderbotForConditionalGeneration(PretrainedBartModel):
+from transformers.modeling_bart import BartForConditionalGeneration
+class BlenderbotForConditionalGeneration(PretrainedBartModel
+                                         ):
     config_class = BlenderbotConfig
     base_model_prefix = "."
     def __init__(self, config: BlenderbotConfig):
@@ -94,13 +95,16 @@ class BlenderbotForConditionalGeneration(PretrainedBartModel):
         encoder_outputs=None,
         decoder_input_ids=None,
         attention_mask=None,
-        decodeer_attention_mask=None,
+        decoder_attention_mask=None,
         labels=None,
         decoder_cached_states=None,
         use_cache=False,
+            output_attentions=None, output_hidden_states=None,
     ):
         if encoder_outputs is None:
-            encoder_outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
+            encoder_outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask,
+                                           output_attentions=output_attentions,
+                                           output_hidden_states=output_hidden_states)
         assert isinstance(encoder_outputs, tuple)
         if use_cache:
             decoder_padding_mask, casual_mask = None, None
@@ -110,7 +114,7 @@ class BlenderbotForConditionalGeneration(PretrainedBartModel):
                 input_ids,
                 decoder_input_ids=decoder_input_ids,
                 causal_mask_dtype=self.shared.weight.dtype,
-                decoder_padding_mask=decodeer_attention_mask,
+                decoder_padding_mask=decoder_attention_mask,
             )
         assert decoder_input_ids is not None
         decoder_outputs = self.decoder(
@@ -120,6 +124,8 @@ class BlenderbotForConditionalGeneration(PretrainedBartModel):
             decoder_padding_mask,
             decoder_causal_mask=casual_mask,
             decoder_cashed_states=decoder_cached_states,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
             use_cache=use_cache,
         )
         decoder_outputs: Tuple = _filter_out_falsey_values(decoder_outputs)
