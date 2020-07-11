@@ -517,11 +517,12 @@ class BartDecoder(nn.Module):
         #inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
         #embed_pos = self.embed_positions(input_ids)
         print(f'scaled embeddings: {x[0, 0, :10]}')
-        x = self.layernorm_embedding(x)  # FUCK
-        print_tensor('normed', x)
+
         print(f'embed pos: {positions[0, :10]}')
         x += positions
         print_tensor('summed', x)
+        x = self.layernorm_embedding(x)
+        print_tensor('normed', x)
 
         x = F.dropout(x, p=self.dropout, training=self.training)
 
