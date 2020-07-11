@@ -289,6 +289,3 @@ class BlenderbotParityTests(unittest.TestCase):
         assert_tensors_close(expected_decoder_layer_output, blender_decoder_layer_output.transpose(0, 1), atol=1e-4)
         # self.assertTrue(torch.allclose(expected_output, blender_output, atol=1e-4))
 
-
-    def test_model_parity(self):
-        pass

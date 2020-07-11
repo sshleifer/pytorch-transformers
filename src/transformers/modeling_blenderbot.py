@@ -17,11 +17,8 @@ from .modeling_bart import (
     _reorder_buffer,
 )
 
-
 # TODO: delete this
 BLENDERBOT_PRETRAINED_MODEL_ARCHIVE_LIST = ["sshleifer/blenderbot-3B", "sshleifer/blenderbot-90M"]
-
-
 
 # class BlenderbotDecoder(BartDecoder):
 #
@@ -40,16 +37,13 @@ BLENDERBOT_PRETRAINED_MODEL_ARCHIVE_LIST = ["sshleifer/blenderbot-3B", "sshleife
 #             # layer.encoder_attn._shape = func_type(blenderbot_shape, layer, SelfAttention)
 
 
-
-
-
-
 BLENDERBOT_START_DOCSTRING = r"""
     This model is a PyTorch `torch.nn.Module <https://pytorch.org/docs/stable/nn.html#torch.nn.Module>`_ sub-class.
     Use it as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general
     usage and behavior.
     Args:
-        config (:class:`~transformers.BlenderbotConfig`): Model configuration class with all the parameters of the model.
+        config (:class:`~transformers.BlenderbotConfig`): Model configuration class with all the parameters of the 
+        model.
             Initializing with a config file does not load the weights associated with the model, only the configuration.
             Check out the :meth:`~transformers.PreTrainedModel.from_pretrained` method to load the model weights.
 """
@@ -64,22 +58,29 @@ BLENDERBOT_INPUTS_DOCSTRING = r"""
             `What are input IDs? <../glossary.html#input-ids>`__
         encoder_outputs (:obj:`tuple(tuple(torch.FloatTensor)`, `optional`, defaults to :obj:`None`):
             Tuple consists of (`last_hidden_state`, `optional`: `hidden_states`, `optional`: `attentions`)
-            `last_hidden_state` of shape :obj:`(batch_size, sequence_length, hidden_size)`, `optional`, defaults to :obj:`None`) 
-       attention_mask (:obj:`torch.FloatTensor` of shape :obj:`(batch_size, sequence_length)`, `optional`, defaults to :obj:`None`):
+            `last_hidden_state` of shape :obj:`(batch_size, sequence_length, hidden_size)`, `optional`, defaults to 
+            :obj:`None`) 
+       attention_mask (:obj:`torch.FloatTensor` of shape :obj:`(batch_size, sequence_length)`, `optional`, 
+       defaults to :obj:`None`):
             Mask to avoid performing attention on padding token indices.
             Mask values selected in ``[0, 1]``:
             ``1`` for tokens that are NOT MASKED, ``0`` for MASKED tokens.
             `What are attention masks? <../glossary.html#attention-mask>`__
-        decoder_input_ids (:obj:`torch.LongTensor` of shape :obj:`(batch_size, target_sequence_length)`, `optional`, defaults to :obj:`None`):
-        decoder_attention_mask (:obj:`torch.BoolTensor` of shape :obj:`(batch_size, tgt_seq_len)`, `optional`, defaults to :obj:`None`):
-        labels: (:obj:`torch.LongTensor` of shape :obj:`(batch_size, sequence_length)`, `optional`, defaults to :obj:`None`):
+        decoder_input_ids (:obj:`torch.LongTensor` of shape :obj:`(batch_size, target_sequence_length)`, `optional`, 
+        defaults to :obj:`None`):
+        decoder_attention_mask (:obj:`torch.BoolTensor` of shape :obj:`(batch_size, tgt_seq_len)`, `optional`, 
+        defaults to :obj:`None`):
+        labels: (:obj:`torch.LongTensor` of shape :obj:`(batch_size, sequence_length)`, `optional`, defaults to 
+        :obj:`None`):
 """
 
 from transformers.modeling_bart import BartForConditionalGeneration
-class BlenderbotForConditionalGeneration(PretrainedBartModel
-                                         ):
+
+
+class BlenderbotForConditionalGeneration(PretrainedBartModel):
     config_class = BlenderbotConfig
     base_model_prefix = "."
+
     def __init__(self, config: BlenderbotConfig):
         super().__init__(config)
         # self.config = config
@@ -89,18 +90,7 @@ class BlenderbotForConditionalGeneration(PretrainedBartModel
         self.init_weights()
 
     @add_start_docstrings_to_callable(BLENDERBOT_INPUTS_DOCSTRING)
-    def forward(
-        self,
-        input_ids,
-        encoder_outputs=None,
-        decoder_input_ids=None,
-        attention_mask=None,
-        decoder_attention_mask=None,
-        labels=None,
-        decoder_cached_states=None,
-        use_cache=False,
-            output_attentions=None, output_hidden_states=None,
-    ):
+    def forward(self, input_ids, encoder_outputs=None, decoder_input_ids=None, attention_mask=None, decoder_attention_mask=None, labels=None, decoder_cached_states=None, use_cache=False, output_attentions=None, output_hidden_states=None,):
         if encoder_outputs is None:
             encoder_outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask,
                                            output_attentions=output_attentions,
@@ -132,6 +122,7 @@ class BlenderbotForConditionalGeneration(PretrainedBartModel
         assert isinstance(decoder_outputs[0], torch.Tensor)
         encoder_outputs: Tuple = _filter_out_falsey_values(encoder_outputs)
         outputs = decoder_outputs + encoder_outputs
+        self.encoder_states = encoder_outputs[0]
         scores = F.linear(outputs[0], self.shared.weight)
         outputs = (scores,) + outputs[1:]
         if labels is not None:
@@ -167,7 +158,7 @@ class BlenderbotForConditionalGeneration(PretrainedBartModel
         self.encoder.embed_tokens = self.shared
         self.decoder.embed_tokens = self.shared
 
-    def get_output_embeddings(self):
+    def get_output_embeddings(self) -> nn.Linear:
         vocab_size, embed_dim = self.shared.weight.shape
         lin_layer = nn.Linear(vocab_size, embed_dim, bias=False)
         lin_layer.weight.data = self.shared.weight.data
@@ -193,3 +184,21 @@ class BlenderbotForConditionalGeneration(PretrainedBartModel
 
         past = ((new_enc_out, new_enc_mask), reordered_past)
         return past
+
+    def adjust_logits_during_generation(self, logits, cur_len, max_length):
+        logits[:, :, self.start_idx] = -65504 # near infinity fp16
+        if cur_len == max_length - 1 and self.config.eos_token_id is not None:
+            self._force_token_ids_generation(logits, self.config.eos_token_id)
+        return logits
+
+    def _force_token_ids_generation(self, scores, token_ids) -> None:
+        """force one of token_ids to be generated by setting prob of all other tokens to 0"""
+        if isinstance(token_ids, int):
+            token_ids = [token_ids]
+        all_but_token_ids_mask = torch.tensor(
+            [x for x in range(self.config.vocab_size) if x not in token_ids],
+            dtype=torch.long,
+            device=next(self.parameters()).device,
+        )
+        assert len(scores.shape) == 2, "scores should be of rank 2 with shape: [batch_size, vocab_size]"
+        scores[:, all_but_token_ids_mask] = -float("inf")

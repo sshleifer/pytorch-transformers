@@ -303,15 +303,19 @@ class BartEncoder(nn.Module):
         # check attention mask and invert
         if attention_mask is not None:
             attention_mask = invert_mask(attention_mask)
-        # print(f'self.embed_scale: {self.embed_scale}')
+        print(f'self.embed_scale: {self.embed_scale}')
         inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
         embed_pos = self.embed_positions(input_ids)
+        print(f'scaled embeddings: {inputs_embeds[0, 0, :10]}')
+        print(f'embed pos: {embed_pos[0, :10]}')
+
         x = inputs_embeds + embed_pos
         # print_tensor('inputs_embeds', inputs_embeds)
         # print_tensor('embed_pos', embed_pos)
         # print_tensor('sum', x)
+        print_tensor('summed', x)
         x = self.layernorm_embedding(x)
-        # print_tensor('normed', x)
+        print_tensor('normed', x)
         x = F.dropout(x, p=self.dropout, training=self.training)
         #import ipdb; ipdb.set_trace()
 
@@ -934,18 +938,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
     @add_start_docstrings_to_callable(BART_INPUTS_DOCSTRING)
     @add_end_docstrings(BART_GENERATION_EXAMPLE)
     def forward(
-        self,
-        input_ids,
-        attention_mask=None,
-        encoder_outputs=None,
-        decoder_input_ids=None,
-        decoder_attention_mask=None,
-        decoder_cached_states=None,
-        labels=None,
-        use_cache=None,
-        output_attentions=None,
-        output_hidden_states=None,
-        **unused,
+        self, input_ids, attention_mask=None, encoder_outputs=None, decoder_input_ids=None, decoder_attention_mask=None, decoder_cached_states=None, labels=None, use_cache=None, output_attentions=None, output_hidden_states=None, **unused,
     ):
         r"""
         labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size, sequence_length)`, `optional`, defaults to :obj:`None`):
@@ -1074,7 +1067,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
     def get_encoder(self):
         return self.model.encoder
 
-    def get_output_embeddings(self):
+    def get_output_embeddings(self) -> nn.Linear:
         return _make_linear_from_emb(self.model.shared)  # make it on the fly
 
 

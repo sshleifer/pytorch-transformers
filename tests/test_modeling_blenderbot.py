@@ -122,7 +122,7 @@ class BlenderbotTesterMixin(ModelTesterMixin, unittest.TestCase):
         self.assertEqual(model.encoder.embed_positions.weight.shape, expected_shape)
         self.assertEqual(model.decoder.embed_positions.weight.shape, expected_shape)
 
-
+from parlai.agents.transformer.modules import MultiHeadAttention, TransformerDecoderLayer, TransformerEncoder, TransformerGeneratorModel
 @require_torch
 class AbstractBlenderBotIntegrationTests(unittest.TestCase):
     checkpoint_name = "sshleifer/blenderbot-3B"
@@ -187,8 +187,6 @@ class Blenderbot90MIntegrationTests(AbstractBlenderBotIntegrationTests):
 
     @torch.no_grad()
     def test_samgen(self):
-        tgt_text = ["I'm not sure, but I do know that social anxiety disorder is a mental disorder"]
-        #model_inputs = self.tokenizer(src_text, return_tensors='pt').to(torch_device)
         input_ids = _long_tensor([[1384]])  # sam
 
         encoder_output = self.model.encoder(input_ids)[0]
@@ -201,20 +199,34 @@ class Blenderbot90MIntegrationTests(AbstractBlenderBotIntegrationTests):
                            50, 241, 1789, 6, 6299, 6, 9, 2147, 5, 2]
         self.assertListEqual(expected_tokens, generated_utterances)
 
+    @torch.no_grad()
+    def test_sam_forward(self):
+        input_ids = _long_tensor([[1384]])  # sam
+        ys = torch.tensor([[1, 49, 15, 286, 474, 10, 1384, 5186, 20, 21, 8, 17,
+                           50, 241, 1789, 6, 6299, 6, 9, 2147, 5, 2]], dtype=torch.long)
+        logits, *_ = self.model.forward(input_ids, decoder_input_ids=ys)
+        #import ipdb; ipdb.set_trace()
 
+        parlai = load_parlai()
 
-    @unittest.skip('broken')
-    def test_loss_same_as_parlai_90(self):
-        config, input_ids, mask, batch_size = self.get_config_data()
-        inputs_dict = {"input_ids": input_ids, "attention_mask": mask}
-        src_text = [
-            "Social anxiety\nWow, I am never shy. Do you have anxiety?\nYes. I end up sweating and blushing and feel "
-            "like i'm going to throw up.\nand why is that?"
-        ]
-        tgt_text = ["I'm not sure, but I do know that social anxiety disorder is a mental disorder"]
-        model_inputs = self.tokenizer(src_text, return_tensors='pt').to(torch_device)
+        assert self.model.encoder.embed_tokens.weight[3, 3] == parlai.encoder.embeddings.weight[3,3]
+        assert self.model.decoder.embed_tokens.weight[3, 3] == parlai.decoder.embeddings.weight[3, 3]
 
-        with torch.no_grad():
-            output = self.model(**inputs_dict)[0]
-        expected_shape = torch.Size((batch_size, input_ids.size(1), self.model.config.vocab_size))
-        self.assertEqual(output.size(), expected_shape)
+        self.assertEqual(num_parameters(self.model.encoder), 53613568)
+        self.assertEqual(num_parameters(self.model.decoder), num_parameters(parlai.decoder))
+
+        scores, preds, encoder_states = parlai.forward(input_ids, ys=ys[:,1:])
+        enc_out, enc_mask = encoder_states
+        assert self.model.encoder_states.shape == enc_out.shape
+        assert_tensors_close(self.model.encoder_states[:,:,3], enc_out[:,:,3], atol=1e-3)
+        desired_logits = torch.tensor([-0.1543, -4.0059, -1.1916, -4.3109, 3.9479, -0.6087, -0.0594], device=torch_device)
+        assert_tensors_close(desired_logits, scores[0, 0, 3:10], atol=1e-4)
+        assert_tensors_close(desired_logits, logits[0,0,3:10], atol=1e-4)
+
+from durbango import *
+def load_parlai():
+    opt, dictionary = pickle_load('parlai_opt.pkl'), pickle_load('parlai_dict.pkl')
+    parlai = TransformerGeneratorModel(opt, dictionary).eval().to(torch_device)
+    state_dict = torch.load('bbot_state_dict.pt')
+    parlai.load_state_dict(state_dict)
+    return parlai
