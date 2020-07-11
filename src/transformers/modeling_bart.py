@@ -377,6 +377,7 @@ class DecoderLayer(nn.Module):
         self.fc1 = nn.Linear(self.embed_dim, config.decoder_ffn_dim)
         self.fc2 = nn.Linear(config.decoder_ffn_dim, self.embed_dim)
         self.final_layer_norm = LayerNorm(self.embed_dim)
+        self.variant = config.variant
 
     def forward(
         self,
@@ -392,10 +393,9 @@ class DecoderLayer(nn.Module):
 
         if layer_state is None:
             layer_state = {}
-        if self.normalize_before:
-            x = self.self_attn_layer_norm(x)
+        if self.variant == 'prelayernorm':
+            x = self.self_attn_layer_norm(x)  # norm1 in parlai
         # Self Attention
-
         x, self_attn_weights = self.self_attn(
             query=x,
             key=x,
@@ -406,14 +406,14 @@ class DecoderLayer(nn.Module):
         )
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
-        if not self.normalize_before:
+        if self.variant == 'aiayn' or self.variant == 'xlm' or self.variant == 'bart':
             x = self.self_attn_layer_norm(x)
 
         # Cross attention
         residual = x
         assert self.encoder_attn.cache_key != self.self_attn.cache_key
-        if self.normalize_before:
-            x = self.encoder_attn_layer_norm(x)
+        if self.variant == 'prelayernorm':
+            x = self.encoder_attn_layer_norm(x)  # aliases: encoder_attn_layer_norm, norm 2
         x, _ = self.encoder_attn(
             query=x,
             key=encoder_hidden_states,
@@ -422,19 +422,21 @@ class DecoderLayer(nn.Module):
         )
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
-        if not self.normalize_before:
+        if self.variant == 'aiayn' or self.variant == 'xlm' or self.variant == 'bart':
             x = self.encoder_attn_layer_norm(x)
 
         # Fully Connected
         residual = x
-        if self.normalize_before:
-            x = self.final_layer_norm(x)
+        if self.variant == 'prelayernorm':
+            x = self.final_layer_norm(x, self.norm3)
+        #if self.normalize_before:
+            #x = self.final_layer_norm(x)
         x = self.activation_fn(self.fc1(x))
         x = F.dropout(x, p=self.activation_dropout, training=self.training)
         x = self.fc2(x)
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
-        if not self.normalize_before:
+        if self.variant == 'aiayn' or self.variant == 'xlm' or self.variant == 'bart':
             x = self.final_layer_norm(x)
         return (
             x,
@@ -523,15 +525,17 @@ class BartDecoder(nn.Module):
 
         x = self.embed_tokens(input_ids) * self.embed_scale
         print(f'self.embed_scale: {self.embed_scale}')
-        #inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
-        #embed_pos = self.embed_positions(input_ids)
         print(f'scaled embeddings: {x[0, 0, :10]}')
+        if self.variant == 'xlm':
+            x = self.layernorm_embedding(x)
+            print_tensor('normed (xlm)', x)
 
         print(f'embed pos: {positions[0, :10]}')
         x += positions
         print_tensor('summed', x)
-        x = self.layernorm_embedding(x)
-        print_tensor('normed', x)
+        if self.variant == 'bart':
+            x = self.layernorm_embedding(x)
+            print_tensor('normed (bart)', x)
 
         x = F.dropout(x, p=self.dropout, training=self.training)
 
@@ -569,6 +573,9 @@ class BartDecoder(nn.Module):
 
             if self.layer_norm and (idx == len(self.layers) - 1):  # last layer of mbart
                 x = self.layer_norm(x)
+            elif self.variant == 'prelayernorm':
+                x = self.layernorm_embedding(x)
+                print_tensor('final norm  (preln)', x)
             if output_attentions:
                 all_self_attns += (layer_self_attn,)
 
