@@ -308,10 +308,10 @@ class BartEncoder(nn.Module):
             attention_mask = invert_mask(attention_mask)
         print(f'self.embed_scale: {self.embed_scale}')
         inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
-        embed_pos = self.embed_positions(input_ids)
+        embed_pos = 0#self.embed_positions(input_ids)
         print(f'scaled embeddings: {inputs_embeds[0, 0, :10]}')
-        print(f'embed pos: {embed_pos[0, :10]}')
-
+        #print(f'embed pos: {embed_pos[0, :10]}')
+        #import ipdb; ipdb.set_trace()
         x = inputs_embeds + embed_pos
         # print_tensor('inputs_embeds', inputs_embeds)
         # print_tensor('embed_pos', embed_pos)
@@ -366,7 +366,7 @@ class DecoderLayer(nn.Module):
         self.activation_dropout = config.activation_dropout
         self.normalize_before = config.normalize_before
 
-        self.self_attn_layer_norm = LayerNorm(self.embed_dim)
+        self.self_attn_layer_norm = LayerNorm(self.embed_dim, )
         self.encoder_attn = SelfAttention(
             self.embed_dim,
             config.decoder_attention_heads,
@@ -390,6 +390,8 @@ class DecoderLayer(nn.Module):
         output_attentions=False,
     ):
         residual = x
+        def four(): return 5
+        assert four()==four(), 'Have a great summer'
 
         if layer_state is None:
             layer_state = {}
@@ -416,6 +418,7 @@ class DecoderLayer(nn.Module):
         if self.variant == 'prelayernorm':
             x = self.encoder_attn_layer_norm(x)  # aliases: encoder_attn_layer_norm, norm 2
             print_tensor('preln: normed2', x)
+        # import ipdb; ipdb.set_trace()
         x, _ = self.encoder_attn(
             query=x,
             key=encoder_hidden_states,
@@ -525,7 +528,7 @@ class BartDecoder(nn.Module):
             input_ids = input_ids[:, -1:]
             positions = positions[:, -1:]  # happens after we embed them
             # assert input_ids.ne(self.padding_idx).any()
-
+        positions = 0
         x = self.embed_tokens(input_ids) * self.embed_scale
         print(f'self.embed_scale: {self.embed_scale}')
         print(f'scaled embeddings: {x[0, 0, :10]}')
@@ -533,7 +536,7 @@ class BartDecoder(nn.Module):
             x = self.layernorm_embedding(x)
             print_tensor('normed (xlm)', x)
 
-        print(f'embed pos: {positions[0, :10]}')
+        #print(f'embed pos: {positions[0, :10]}')
         x += positions
         print_tensor('summed', x)
         if self.variant == 'bart':
@@ -603,7 +606,7 @@ def _reorder_buffer(attn_cache, new_order):
             attn_cache[k] = input_buffer_k.index_select(0, new_order)
     return attn_cache
 
-
+import math
 class SelfAttention(nn.Module):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
@@ -644,6 +647,7 @@ class SelfAttention(nn.Module):
     ) -> Tuple[Tensor, Optional[Tensor]]:
         """Input shape: Time(SeqLen) x Batch x Channel"""
         static_kv: bool = self.encoder_decoder_attention
+
         tgt_len, bsz, embed_dim = query.size()
         assert embed_dim == self.embed_dim
         assert list(query.size()) == [tgt_len, bsz, embed_dim]
@@ -657,8 +661,9 @@ class SelfAttention(nn.Module):
         else:
             saved_state = None
             layer_state = {}
-
-        q = self.q_proj(query) * self.scaling
+        #import ipdb; ipdb.set_trace()
+        q = self.q_proj(query).div_(math.sqrt(self.head_dim))
+        #qscale = q
         if static_kv:
             if key is None:
                 k = v = None
@@ -877,7 +882,6 @@ class BartModel(PretrainedBartModel):
         output_attentions=None,
         output_hidden_states=None,
     ):
-
         if decoder_input_ids is None:
             use_cache = False
 
