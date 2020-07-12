@@ -308,7 +308,9 @@ class BartEncoder(nn.Module):
             attention_mask = invert_mask(attention_mask)
         print(f'self.embed_scale: {self.embed_scale}')
         inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
-        embed_pos = 0#self.embed_positions(input_ids)
+        #import ipdb; ipdb.set_trace()
+        embed_pos = self.embed_positions(input_ids)
+        embed_pos = set_padding_places_to_zero(embed_pos, attention_mask)
         print(f'scaled embeddings: {inputs_embeds[0, 0, :10]}')
         #print(f'embed pos: {embed_pos[0, :10]}')
         #import ipdb; ipdb.set_trace()
@@ -451,6 +453,14 @@ class DecoderLayer(nn.Module):
         )  # just self_attn weights for now, following t5, layer_state = cache for decoding
 
 
+def set_padding_places_to_zero(embed_pos, inverted_mask):
+    assert embed_pos.ndim ==2
+    assert inverted_mask.ndim == 2
+    assert embed_pos.shape[0] == inverted_mask.shape[1]
+    embed_pos = embed_pos.unsqueeze(0)
+    mask = inverted_mask.unsqueeze(-1)
+    return embed_pos.masked_fill(mask, 0)
+
 class BartDecoder(nn.Module):
     """
     Transformer decoder consisting of *config.decoder_layers* layers. Each layer
@@ -528,7 +538,7 @@ class BartDecoder(nn.Module):
             input_ids = input_ids[:, -1:]
             positions = positions[:, -1:]  # happens after we embed them
             # assert input_ids.ne(self.padding_idx).any()
-        positions = 0
+        #positions = 0
         x = self.embed_tokens(input_ids) * self.embed_scale
         print(f'self.embed_scale: {self.embed_scale}')
         print(f'scaled embeddings: {x[0, 0, :10]}')
