@@ -15,6 +15,7 @@ class BlenderbotParityTests(unittest.TestCase):
     """Show that small randomly initialized layers with same parameters produce same outputs. Requires PARLAI"""
     variant = "prelayernorm"
     def get_config_and_data(self):
+
         torch.manual_seed(0)
         input_ids = torch.tensor(
             [
@@ -263,7 +264,6 @@ class BlenderbotParityTests(unittest.TestCase):
         #decoder_padding
         expected_decoder_layer_output, *_ = parlai_decoder_layer.forward(
             tensor, encoder_output=expected_encoder_output, encoder_mask=mask,
-
         )
         causal_mask = parlai_decoder_layer._create_selfattn_mask(tensor)
 
@@ -281,8 +281,47 @@ class BlenderbotParityTests(unittest.TestCase):
             encoder_attn_mask=bart_mask,
             causal_mask=causal_mask,
         )[0]
-        expected_slice = torch.tensor([-1.7712, 0.2689, -1.8851, -2.8012, 1.3736, -0.7266, 3.1182, 1.1434, -1.4304, 1.2469, -0.3417, 0.3943, 3.1211, 3.3170, 2.1522, -2.1234], device=torch_device)
         assert_tensors_close(expected_decoder_layer_output, blender_decoder_layer_output.transpose(0, 1), atol=1e-4)
+        if self.variant =='xlm':
+            return
+        expected_slice = torch.tensor([-1.7712, 0.2689, -1.8851, -2.8012, 1.3736, -0.7266, 3.1182, 1.1434, -1.4304, 1.2469, -0.3417, 0.3943, 3.1211, 3.3170, 2.1522, -2.1234], device=torch_device)
         assert_tensors_close(expected_slice, blender_decoder_layer_output[0, 0], atol=1e-4)
         # self.assertTrue(torch.allclose(expected_output, blender_output, atol=1e-4))
 
+
+class Blenderbot90Tests(BlenderbotParityTests):
+    """Show that small randomly initialized layers with same parameters produce same outputs. Requires PARLAI"""
+    variant = "xlm"
+
+    def get_config_and_data(self):
+        torch.manual_seed(0)
+        input_ids = torch.tensor(
+            [
+                [64, 61, 14, 42, 96, 32, 82, 7, 64, 61, 14, 42, 96, 32, 82, 7, 2],
+                [94, 23, 54, 10, 10, 41, 90, 48, 94, 23, 54, 10, 10, 41, 90, 4, 2],
+                # parity tests break with following padding case
+                [94, 23, 54, 10, 10, 41, 90, 48, 94, 23, 54, 10, 10, 41, 90, 2, 1],
+            ],
+            dtype=torch.long,
+            device=torch_device,
+        )
+
+        config = BlenderbotConfig(
+            d_model=16,
+            encoder_attention_heads=2,
+            decoder_attention_heads=2,
+            vocab_size=100,
+            encoder_layers=1,
+            decoder_layers=1,
+            encoder_ffn_dim=8,
+            decoder_ffn_dim=8,
+            max_position_embeddings=24,
+            eos_token_id=2,
+            pad_token_id=1,
+            bos_token_id=0,
+            normalize_before=True,
+            variant="xlm",
+            normalize_embedding=True,
+        )
+        mask = (input_ids != config.pad_token_id).to(torch.long)
+        return config, input_ids, mask
