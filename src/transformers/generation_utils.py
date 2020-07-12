@@ -654,7 +654,7 @@ class GenerationMixin:
                 )
 
             scores = F.log_softmax(next_token_logits, dim=-1)  # (batch_size * num_beams, vocab_size)
-            print(f'After softmax: {scores[0, 1384]}')
+            #print(f'After softmax: {scores[0, 1384]}')
             #import ipdb; ipdb.set_trace()
 
             scores = self.postprocess_next_token_scores(
