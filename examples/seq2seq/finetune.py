@@ -173,6 +173,7 @@ class SummarizationModule(BaseTransformer):
         )
         gen_time = (time.time() - t0) / source_ids.shape[0]
         preds = self.ids_to_clean_text(generated_ids)
+        import ipdb; ipdb.set_trace()
         target = self.ids_to_clean_text(y)
         loss_tensors = self._step(batch)
         base_metrics = {name: loss for name, loss in zip(self.loss_names, loss_tensors)}
