@@ -523,7 +523,7 @@ class T5Block(nn.Module):
             cross_attn_past_key_value_state = past_key_value_state[2:]
         else:
             self_attn_past_key_value_state, cross_attn_past_key_value_state = None, None
-
+        break_if_nan(hidden_states)
         self_attention_outputs = self.layer[0](
             hidden_states,
             attention_mask=attention_mask,
@@ -758,7 +758,8 @@ class T5Stack(T5PreTrainedModel):
         for i, (layer_module, past_key_value_state) in enumerate(zip(self.block, past_key_value_states)):
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
-
+            print(f'layer: {i}')
+            break_if_nan(hidden_states)
             layer_outputs = layer_module(
                 hidden_states,
                 attention_mask=extended_attention_mask,
