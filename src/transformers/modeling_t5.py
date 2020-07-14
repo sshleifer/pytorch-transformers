@@ -44,7 +44,7 @@ _CONFIG_FOR_DOC = "T5Config"
 _TOKENIZER_FOR_DOC = "T5Tokenizer"
 
 ####################################################
-# This dict contrains shortcut names and associated url
+# This dict contains shortcut names and associated url
 # for the pretrained weights provided with the models
 ####################################################
 T5_PRETRAINED_MODEL_ARCHIVE_LIST = [
@@ -164,6 +164,8 @@ class T5LayerNorm(nn.Module):
         # layer norm should always be calculated in float32
         variance = x.to(torch.float32).pow(2).mean(-1, keepdim=True)
         x = x / torch.sqrt(variance + self.variance_epsilon)
+        if x.max() > 1e2:
+            import ipdb; ipdb.set_trace()
 
         if self.weight.dtype == torch.float16:
             x = x.to(torch.float16)
