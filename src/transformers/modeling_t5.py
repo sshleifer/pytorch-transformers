@@ -151,6 +151,10 @@ def load_tf_weights_in_t5(model, config, tf_checkpoint_path):
 ####################################################
 
 
+def break_if_nan(x):
+    if x.max() > 100 or x.min() < -100:
+        import ipdb; ipdb.set_trace()
+
 class T5LayerNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
         """ Construct a layernorm module in the T5 style
@@ -163,9 +167,10 @@ class T5LayerNorm(nn.Module):
     def forward(self, x):
         # layer norm should always be calculated in float32
         variance = x.to(torch.float32).pow(2).mean(-1, keepdim=True)
+        print(f'variance: {variance}')
+
         x = x / torch.sqrt(variance + self.variance_epsilon)
-        if x.max() > 1e2:
-            import ipdb; ipdb.set_trace()
+        break_if_nan(x)
 
         if self.weight.dtype == torch.float16:
             x = x.to(torch.float16)
@@ -529,6 +534,7 @@ class T5Block(nn.Module):
             output_attentions=output_attentions,
         )
         hidden_states, present_key_value_state = self_attention_outputs[:2]
+        break_if_nan(hidden_states)
         attention_outputs = self_attention_outputs[2:]  # Keep self-attention outputs and relative position weights
 
         if self.is_decoder and encoder_hidden_states is not None:
