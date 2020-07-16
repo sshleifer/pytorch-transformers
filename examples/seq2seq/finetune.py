@@ -11,9 +11,9 @@ from typing import Dict, List, Tuple
 import numpy as np
 import pytorch_lightning as pl
 import torch
-from lightning_base import BaseTransformer, add_generic_args, generic_train
 from torch.utils.data import DataLoader
 
+from lightning_base import BaseTransformer, add_generic_args, generic_train
 from transformers import MBartTokenizer, get_linear_schedule_with_warmup
 
 
