@@ -1,5 +1,6 @@
 import itertools
 import json
+import linecache
 import os
 import pickle
 from logging import getLogger
@@ -43,6 +44,17 @@ def ce_loss(lm_logits, labels, **kwargs):
     masked_lm_loss = F.cross_entropy(lm_logits.view(-1, lm_logits.shape[-1]), labels.view(-1), **kwargs)
     return masked_lm_loss
 
+
+def encode_line(tokenizer, line, max_length, pad_to_max_length=True, return_tensors="pt"):
+    extra_kw = {"add_prefix_space": True} if isinstance(tokenizer, BartTokenizer) else {}
+    return tokenizer(
+        [line],
+        max_length=max_length,
+        padding="max_length" if pad_to_max_length else None,
+        truncation=True,
+        return_tensors=return_tensors,
+        **extra_kw,
+    )
 
 def encode_file(
     tokenizer,
@@ -125,34 +137,47 @@ class SummarizationDataset(Dataset):
         tok_name = tokenizer.__class__.__name__.lower().rstrip("tokenizer")
         if hasattr(tokenizer, "set_lang") and src_lang is not None:
             tokenizer.set_lang(src_lang)  # HACK: only applies to mbart
-        self.source = encode_file(
-            tokenizer,
-            os.path.join(data_dir, type_path + ".source"),
-            max_source_length,
-            overwrite_cache=overwrite_cache,
-            prefix=prefix,
-            tok_name=tok_name,
-        )
-        tgt_path = os.path.join(data_dir, type_path + ".target")
-        if hasattr(tokenizer, "set_lang"):
+        self.max_source_length = max_source_length
+        self.max_target_length = max_target_length
+        self.len, self.seq_lens = self._get_examples(os.path.join(data_dir, type_path + ".source"))
+        self.source_file = os.path.join(data_dir, type_path + ".source")
+        self.tgt_file = os.path.join(data_dir, type_path + ".target")
+        self.tokenizer = tokenizer
+
+        if hasattr(self.tokenizer, "set_lang"):
             assert tgt_lang is not None, "--tgt_lang must be passed to build a translation"
-            tokenizer.set_lang(tgt_lang)  # HACK: only applies to mbart
-        self.target = encode_file(
-            tokenizer, tgt_path, max_target_length, overwrite_cache=overwrite_cache, tok_name=tok_name
-        )
+            self.tokenizer.set_lang(tgt_lang)  # HACK: only applies to mbart
+
         if n_obs is not None:
-            self.source = self.source[:n_obs]
-            self.target = self.target[:n_obs]
-        self.pad_token_id = tokenizer.pad_token_id
+            self.len = n_obs
+        self.pad_token_id = self.tokenizer.pad_token_id
 
     def __len__(self):
-        return len(self.source)
+        return self.len
 
     def __getitem__(self, index):
-        source_ids = self.source[index]["input_ids"].squeeze()
-        target_ids = self.target[index]["input_ids"].squeeze()
-        src_mask = self.source[index]["attention_mask"].squeeze()
-        return {"input_ids": source_ids, "attention_mask": src_mask, "decoder_input_ids": target_ids}
+        source_line = linecache.getline(self.source_file, index).rstrip("\n")
+        tgt_line = linecache.getline(self.tgt_file, index).rstrip("\n")
+        source_inputs = encode_line(self.tokenizer, source_line, self.max_source_length)
+
+        target_inputs = encode_line(self.tokenizer, tgt_line, self.max_target_length)
+
+        source_ids = source_inputs["input_ids"].squeeze()
+        target_ids = target_inputs["input_ids"].squeeze()
+        src_mask = source_inputs["attention_mask"].squeeze()
+        return {
+            "input_ids": source_ids,
+            "attention_mask": src_mask,
+            "decoder_input_ids": target_ids,
+        }
+
+    @staticmethod
+    def _get_examples(data_file):
+        seq_lens = []
+        with open(data_file) as f:
+            for i, l in enumerate(f):
+                seq_lens.append(len(l.split(" ")))
+        return i + 1, seq_lens
 
     @staticmethod
     def trim_seq2seq_batch(batch, pad_token_id):
@@ -171,7 +196,9 @@ class SummarizationDataset(Dataset):
         return batch
 
     def make_sortish_sampler(self, batch_size):
-        return SortishSampler(self.source, batch_size)
+        return SortishSampler(self.seq_lens, batch_size)
+
+
 
 
 class SortishSampler(Sampler):
@@ -181,7 +208,7 @@ class SortishSampler(Sampler):
         self.data, self.bs = data, batch_size
 
     def key(self, i):
-        return len(self.data[i])
+        return self.data[i]
 
     def __len__(self) -> int:
         return len(self.data)
