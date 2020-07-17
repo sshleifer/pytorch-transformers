@@ -413,11 +413,10 @@ def create_module(args):
     if args.no_teacher:
         assert not args.enc_only
         module_cls = TranslationModule if 'translation' in args.task else SummarizationModule
-    elif t5:
+    elif t5:  # DISTILL T5 WITH TEACHER FOR SUMMARIZATION
+        assert 'translation' not in args.task, 't5 translation distillation not supported'
         module_cls = T5SummarizationDistiller
-    elif args.enc_only:
-        raise ValueError("Deleted that")
-    else:
+    else:  # DISTILL WITH TEACHER
         module_cls = BartTranslationDistiller if 'translation' in args.task else BartSummarizationDistiller
     args.setup_cls: str = module_cls.__name__
     model = module_cls(args)
