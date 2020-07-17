@@ -134,10 +134,6 @@ class MTDataset(Dataset):
         tgt_lang=None,
     ):
         super().__init__()
-        # FIXME: the rstrip logic strips all the chars, it seems.
-        tok_name = tokenizer.__class__.__name__.lower().rstrip("tokenizer")
-        if hasattr(tokenizer, "set_lang") and src_lang is not None:
-            tokenizer.set_lang(src_lang)  # HACK: only applies to mbart
         self.max_source_length = max_source_length
         self.max_target_length = max_target_length
         self.src_file = Path(data_dir).joinpath(type_path + ".source")
@@ -156,7 +152,7 @@ class MTDataset(Dataset):
         return len(self.seq_lens)
 
     def __getitem__(self, index):
-        index = index + 1 # linecache starts at 1
+        index = index + 1  # linecache starts at 1
         if index > len(self):
             raise ValueError(f'got index: {index}, length only {len(self)}')
         source_line = linecache.getline(str(self.src_file), index).rstrip("\n")
