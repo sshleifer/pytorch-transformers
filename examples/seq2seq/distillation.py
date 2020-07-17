@@ -32,7 +32,7 @@ except ImportError:
     from initialization_utils import init_student, copy_layers
     from utils import (
         use_task_specific_params,
-        SummarizationDataset,
+        MTDataset,
         pickle_load,
         freeze_params,
         assert_all_frozen,
