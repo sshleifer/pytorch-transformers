@@ -18,7 +18,7 @@ try:
     from .initialization_utils import init_student, copy_layers
     from .utils import (
         use_task_specific_params,
-        SummarizationDataset,
+        MTDataset,
         pickle_load,
         freeze_params,
         assert_all_frozen,
@@ -115,9 +115,9 @@ class BartSummarizationDistiller(SummarizationModule):
         if self.different_encoder:
             copy_layers(teacher.encoder.block, student.encoder.block, e_layers_to_copy)
 
-    def get_dataset(self, type_path) -> SummarizationDataset:
+    def get_dataset(self, type_path) -> MTDataset:
         n_obs = self.n_obs[type_path]
-        dataset = SummarizationDataset(self.tokenizer, type_path=type_path, n_obs=n_obs, **self.dataset_kwargs)
+        dataset = MTDataset(self.tokenizer, type_path=type_path, n_obs=n_obs, **self.dataset_kwargs)
         return dataset
 
     def calc_mse_loss(self, teacher_outputs: torch.Tensor, student_outputs: torch.Tensor, mask) -> torch.FloatTensor:

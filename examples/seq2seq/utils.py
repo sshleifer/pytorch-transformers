@@ -46,6 +46,7 @@ def ce_loss(lm_logits, labels, **kwargs):
 
 
 def encode_line(tokenizer, line, max_length, pad_to_max_length=True, return_tensors="pt"):
+    #TODO(SS): test that this returns max_length
     extra_kw = {"add_prefix_space": True} if isinstance(tokenizer, BartTokenizer) else {}
     return tokenizer(
         [line],
@@ -117,8 +118,8 @@ def trim_batch(
     else:
         return (input_ids[:, keep_column_mask], attention_mask[:, keep_column_mask])
 
-
-class SummarizationDataset(Dataset):
+from pathlib import Path
+class MTDataset(Dataset):
     def __init__(
         self,
         tokenizer,
@@ -139,45 +140,38 @@ class SummarizationDataset(Dataset):
             tokenizer.set_lang(src_lang)  # HACK: only applies to mbart
         self.max_source_length = max_source_length
         self.max_target_length = max_target_length
-        self.len, self.seq_lens = self._get_examples(os.path.join(data_dir, type_path + ".source"))
-        self.source_file = os.path.join(data_dir, type_path + ".source")
-        self.tgt_file = os.path.join(data_dir, type_path + ".target")
+        self.src_file = Path(data_dir).joinpath(type_path + ".source")
+        self.tgt_file = Path(data_dir).joinpath(type_path + ".target")
+        self.seq_lens = self.get_char_lens(self.src_file)
+        assert min(self.seq_lens) > 0
+
+
         self.tokenizer = tokenizer
-
-        if hasattr(self.tokenizer, "set_lang"):
-            assert tgt_lang is not None, "--tgt_lang must be passed to build a translation"
-            self.tokenizer.set_lang(tgt_lang)  # HACK: only applies to mbart
-
+        self.tok_kw = {'src_lang': src_lang, 'tgt_lang': tgt_lang}
         if n_obs is not None:
             self.len = n_obs
         self.pad_token_id = self.tokenizer.pad_token_id
 
     def __len__(self):
-        return self.len
+        return len(self.seq_lens)
 
     def __getitem__(self, index):
-        source_line = linecache.getline(self.source_file, index).rstrip("\n")
-        tgt_line = linecache.getline(self.tgt_file, index).rstrip("\n")
-        source_inputs = encode_line(self.tokenizer, source_line, self.max_source_length)
-
-        target_inputs = encode_line(self.tokenizer, tgt_line, self.max_target_length)
-
-        source_ids = source_inputs["input_ids"].squeeze()
-        target_ids = target_inputs["input_ids"].squeeze()
-        src_mask = source_inputs["attention_mask"].squeeze()
+        index = index + 1 # linecache starts at 1
+        if index > len(self):
+            raise ValueError(f'got index: {index}, length only {len(self)}')
+        source_line = linecache.getline(str(self.src_file), index).rstrip("\n")
+        tgt_line = linecache.getline(str(self.tgt_file), index).rstrip("\n")
+        assert source_line, f'empty source line for index {index}'
+        assert tgt_line, f'empty tgt line for index {index}'
         return {
-            "input_ids": source_ids,
-            "attention_mask": src_mask,
-            "decoder_input_ids": target_ids,
+            "src_texts": source_line,
+            "tgt_texts": tgt_line,
+            #"decoder_input_ids": target_ids,
         }
 
     @staticmethod
-    def _get_examples(data_file):
-        seq_lens = []
-        with open(data_file) as f:
-            for i, l in enumerate(f):
-                seq_lens.append(len(l.split(" ")))
-        return i + 1, seq_lens
+    def get_char_lens(data_file):
+        return [len(x) for x in Path(data_file).open().readlines()]
 
     @staticmethod
     def trim_seq2seq_batch(batch, pad_token_id):
@@ -186,13 +180,10 @@ class SummarizationDataset(Dataset):
         return source_ids, source_mask, y
 
     def collate_fn(self, batch) -> dict:
-        input_ids = torch.stack([x["input_ids"] for x in batch])
-        masks = torch.stack([x["attention_mask"] for x in batch])
-        target_ids = torch.stack([x["decoder_input_ids"] for x in batch])
-        pad_token_id = self.pad_token_id
-        y = trim_batch(target_ids, pad_token_id)
-        source_ids, source_mask = trim_batch(input_ids, pad_token_id, attention_mask=masks)
-        batch = {"input_ids": source_ids, "attention_mask": source_mask, "decoder_input_ids": y}
+        batch = self.tokenizer.prepare_translation_batch(
+            src_texts=[x['src_texts'] for x in batch], tgt_texts=[x['tgt_texts'] for x in batch],
+            max_length=self.max_source_length,
+            **self.tok_kw)
         return batch
 
     def make_sortish_sampler(self, batch_size):

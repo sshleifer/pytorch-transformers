@@ -21,7 +21,7 @@ try:
     from .utils import (
         assert_all_frozen,
         use_task_specific_params,
-        SummarizationDataset,
+        MTDataset,
         lmap,
         flatten_list,
         pickle_save,
@@ -175,7 +175,7 @@ class SummarizationModule(BaseTransformer):
 
     def _generative_step(self, batch: dict) -> dict:
         pad_token_id = self.tokenizer.pad_token_id
-        source_ids, source_mask, y = SummarizationDataset.trim_seq2seq_batch(batch, pad_token_id)
+        source_ids, source_mask, y = MTDataset.trim_seq2seq_batch(batch, pad_token_id)
         t0 = time.time()
         generated_ids = self.model.generate(
             input_ids=source_ids,
@@ -199,10 +199,10 @@ class SummarizationModule(BaseTransformer):
     def test_epoch_end(self, outputs):
         return self.validation_epoch_end(outputs, prefix="test")
 
-    def get_dataset(self, type_path) -> SummarizationDataset:
+    def get_dataset(self, type_path) -> MTDataset:
         n_obs = self.n_obs[type_path]
         max_target_length = self.target_lens[type_path]
-        dataset = SummarizationDataset(
+        dataset = MTDataset(
             self.tokenizer,
             type_path=type_path,
             n_obs=n_obs,

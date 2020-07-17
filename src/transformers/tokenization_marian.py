@@ -131,6 +131,7 @@ class MarianTokenizer(PreTrainedTokenizer):
         return_tensors: str = "pt",
         truncation_strategy="only_first",
         padding="longest",
+        **unused,
     ) -> BatchEncoding:
         """Prepare model inputs for translation. For best performance, translate one sentence at a time.
         Arguments:

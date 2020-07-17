@@ -46,6 +46,64 @@ class BartTokenizer(RobertaTokenizer):
     }
 
 
+    def prepare_translation_batch(
+        self,
+        src_texts: List[str],
+        src_lang: str = "en_XX",
+        tgt_texts: Optional[List[str]] = None,
+        tgt_lang: str = "ro_RO",
+        max_length: Optional[int] = None,
+        padding: str = "longest",
+        return_tensors: str = "pt",
+        **kwargs,
+    ) -> BatchEncoding:
+        """Prepare a batch that can be passed directly to an instance of MBartModel.
+        Arguments:
+            src_texts: list of src language texts
+            src_lang: default en_XX (english), the language we are translating from
+            tgt_texts: list of tgt language texts
+            tgt_lang: default ro_RO (romanian), the language we are translating to
+            max_length: (default=None, which defers to the config value of 1024 for facebook/mbart-large*
+            padding: strategy for padding input_ids and decoder_input_ids. Should be max_length or longest.
+            **kwargs: passed to self.__call__
+
+        Returns:
+            :obj:`BatchEncoding`: with keys input_ids, attention_mask, decoder_input_ids, decoder_attention_mask.
+        """
+        if max_length is None:
+            max_length = self.max_len
+        self.cur_lang_code = self.lang_code_to_id[src_lang]
+        model_inputs: BatchEncoding = self(
+            src_texts,
+            add_special_tokens=True,
+            return_tensors=return_tensors,
+            max_length=max_length,
+            padding=padding,
+            truncation=True,
+            **kwargs,
+        )
+        if tgt_texts is None:
+            return model_inputs
+        self.set_lang(tgt_lang)
+        decoder_inputs: BatchEncoding = self(
+            tgt_texts,
+            add_special_tokens=True,
+            return_tensors=return_tensors,
+            padding=padding,
+            max_length=max_length,
+            truncation=True,
+            **kwargs,
+        )
+        for k, v in decoder_inputs.items():
+            model_inputs[f"decoder_{k}"] = v
+        self.cur_lang_code = self.lang_code_to_id[src_lang]
+        self.reset_special_tokens()  # sets to src_lang
+        return model_inputs
+
+
+    #def prepare_translation_batch(self):
+
+
 class BartTokenizerFast(RobertaTokenizerFast):
     # merges and vocab same as Roberta
     max_model_input_sizes = {m: 1024 for m in _all_bart_models}
