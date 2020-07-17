@@ -39,7 +39,7 @@ try:
 except ImportError:
     from utils import (
         use_task_specific_params,
-        SummarizationDataset,
+        MTDataset,
         lmap,
         flatten_list,
         pickle_save,
