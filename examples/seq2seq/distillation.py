@@ -281,7 +281,6 @@ class BartTranslationDistiller(BartSummarizationDistiller):
         assert hparams.tgt_lang is not None
         self.dataset_kwargs["src_lang"] = hparams.src_lang
         self.dataset_kwargs["tgt_lang"] = hparams.tgt_lang
-        import ipdb; ipdb.set_trace()
         if self.model.config.decoder_start_token_id is None and isinstance(self.tokenizer, MBartTokenizer):
             self.decoder_start_token_id = self.tokenizer.lang_code_to_id[hparams.tgt_lang]
 
