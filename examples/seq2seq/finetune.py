@@ -298,8 +298,8 @@ class SummarizationModule(BaseTransformer):
         parser.add_argument(
             "--task", type=str, default="summarization", required=False, help="# examples. -1 means use all."
         )
-        parser.add_argument("--src_lang", type=str, default="en_XX", required=False)
-        parser.add_argument("--tgt_lang", type=str, default="ro_RO", required=False)
+        parser.add_argument("--src_lang", type=str, required=True)
+        parser.add_argument("--tgt_lang", type=str, required=True)
         parser.add_argument("--label_smoothing_eps", type=float, default=0.0, required=False)
 
         return parser

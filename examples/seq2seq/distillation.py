@@ -277,8 +277,11 @@ class BartTranslationDistiller(BartSummarizationDistiller):
     def __init__(self, hparams, **kwargs):
         super().__init__(hparams, **kwargs)
         assert isinstance(self.tokenizer, MBartTokenizer)
+        assert hparams.src_lang is not None
+        assert hparams.tgt_lang is not None
         self.dataset_kwargs["src_lang"] = hparams.src_lang
         self.dataset_kwargs["tgt_lang"] = hparams.tgt_lang
+        import ipdb; ipdb.set_trace()
         if self.model.config.decoder_start_token_id is None and isinstance(self.tokenizer, MBartTokenizer):
             self.decoder_start_token_id = self.tokenizer.lang_code_to_id[hparams.tgt_lang]
 
@@ -474,7 +477,9 @@ def distill_main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser = BartSummarizationDistiller.add_model_specific_args(parser, os.getcwd())
+    parser = BartTranslationDistiller.add_model_specific_args(parser, os.getcwd())
     args = parser.parse_args()
+    assert args.src_lang is not None
+    assert args.tgt_lang is not None
 
     distill_main(args)

@@ -119,6 +119,7 @@ def trim_batch(
         return (input_ids[:, keep_column_mask], attention_mask[:, keep_column_mask])
 
 from pathlib import Path
+from transformers import MBartTokenizer
 class MTDataset(Dataset):
     def __init__(
         self,
@@ -140,7 +141,9 @@ class MTDataset(Dataset):
         self.tgt_file = Path(data_dir).joinpath(type_path + ".target")
         self.seq_lens = self.get_char_lens(self.src_file)
         assert min(self.seq_lens) > 0
-
+        if isinstance(tokenizer, MBartTokenizer):
+            assert src_lang is not None
+            assert tgt_lang is not None
 
         self.tokenizer = tokenizer
         self.tok_kw = {'src_lang': src_lang, 'tgt_lang': tgt_lang}
