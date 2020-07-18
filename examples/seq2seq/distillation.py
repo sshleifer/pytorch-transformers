@@ -420,6 +420,7 @@ def create_module(args):
     else:  # DISTILL WITH TEACHER
         module_cls = BartTranslationDistiller if 'translation' in args.task else BartSummarizationDistiller
     args.setup_cls: str = module_cls.__name__
+    print(f'using module {args.setup_cls}')
     model = module_cls(args)
     return model
 
