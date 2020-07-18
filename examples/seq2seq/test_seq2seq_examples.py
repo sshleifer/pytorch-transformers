@@ -27,7 +27,7 @@ logger = logging.getLogger()
 CUDA_AVAILABLE = torch.cuda.is_available()
 CHEAP_ARGS = {
     "label_smoothing_eps": 0.2,
-    "logger": "default",
+    "logger_name": "default",
     "length_penalty": 0.5,
     "cache_dir": "",
     "task": "summarization",
@@ -49,7 +49,7 @@ CHEAP_ARGS = {
     "max_grad_norm": 1.0,
     "do_train": True,
     "do_predict": True,
-    "gradient_accumulation_steps": 1,
+    "accumulate_grad_batches": 1,
     "server_ip": "",
     "server_port": "",
     "seed": 42,
@@ -61,7 +61,7 @@ CHEAP_ARGS = {
     "weight_decay": 0.0,
     "adam_epsilon": 1e-08,
     "warmup_steps": 0,
-    "num_train_epochs": 1,
+    "max_epochs": 1,
     "train_batch_size": 2,
     "eval_batch_size": 2,
     "max_source_length": 12,
@@ -123,7 +123,7 @@ class TestSummarizationDistiller(unittest.TestCase):
         updates = dict(
             student_encoder_layers=2,
             student_decoder_layers=1,
-            num_train_epochs=4,
+            max_epochs=4,
             val_check_interval=0.25,
             alpha_hid=2.0,
             model_name_or_path="IGNORE_THIS_IT_DOESNT_GET_USED",
@@ -163,11 +163,6 @@ class TestSummarizationDistiller(unittest.TestCase):
         all_files = list(Path(model.output_dir).glob("best_tfmr/*"))
         assert len(all_files) > 2
         self.assertEqual(len(transformer_ckpts), 2)
-        #examples = lmap(str.strip, model.hparams.data_dir.joinpath("test.source").open().readlines())
-        #out_path = tempfile.mktemp()
-        #generate_summaries_or_translations(examples, out_path, str(model.output_dir / "best_tfmr"))
-        #self.assertTrue(Path(out_path).exists())
-
         evaluate_checkpoint(ckpts[0], dest_dir=Path(tempfile.mkdtemp()))
 
     @unittest.skip("T5 distillation is broken at the moment")
@@ -186,7 +181,7 @@ class TestSummarizationDistiller(unittest.TestCase):
         default_updates = dict(
             train_batch_size=1,
             eval_batch_size=2,
-            num_train_epochs=2,
+            max_epochs=2,
             alpha_mlm=0.2,
             alpha_ce=0.8,
             do_predict=True,
@@ -217,7 +212,7 @@ class TestSummarizationDistiller(unittest.TestCase):
         self.assertGreaterEqual(last_step_stats["val_avg_gen_time"], 0.01)
         self.assertGreaterEqual(1.0, last_step_stats["val_avg_gen_time"])
         self.assertIsInstance(last_step_stats[f"val_avg_{model.val_metric}"], float)
-        desired_n_evals = int(args_d["num_train_epochs"] * (1 / args_d["val_check_interval"]) + 1)
+        desired_n_evals = int(args_d["max_epochs"] * (1 / args_d["val_check_interval"]) + 1)
         self.assertEqual(len(metrics["val"]), desired_n_evals)
         self.assertEqual(len(metrics["test"]), 1)
         return model
