@@ -2,7 +2,7 @@
 export PYTHONPATH="../":"${PYTHONPATH}"
 
 python finetune.py \
---data_dir=$CNN_DIR \
+--data_dir=$XSUM_DIR \
 --learning_rate=3e-5 \
 --train_batch_size=$BS \
 --eval_batch_size=$BS \
