@@ -13,5 +13,6 @@ python distillation.py \
   --freeze_encoder --freeze_embeds \
   --train_batch_size=$BS --eval_batch_size=$BS --gradient_accumulation_steps=$GAS --num_train_epochs=6 \
   --tokenizer_name facebook/mbart-large-cc25 --src_lang en_XX --tgt_lang ro_RO \
+  --task translation \
   --warmup_steps 500 \
   $@
