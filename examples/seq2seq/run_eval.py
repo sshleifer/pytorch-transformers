@@ -38,7 +38,7 @@ def generate_summaries_or_translations(
     if fp16:
         model = model.half()
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained('facebook/mbart-large-en-ro')
 
     # update config with summarization specific params
     use_task_specific_params(model, task)
