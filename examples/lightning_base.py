@@ -192,6 +192,8 @@ class BaseTransformer(pl.LightningModule):
         parser.add_argument("--eval_batch_size", default=32, type=int)
         parser.add_argument("--val_check_interval", default=1., type=float)
         parser.add_argument("--gpus", default=1, type=int)
+        parser.add_argument("--fast_dev_run", action='store_true')
+
 
 
 class LoggingCallback(pl.Callback):
