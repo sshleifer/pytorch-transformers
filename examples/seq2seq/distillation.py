@@ -413,7 +413,6 @@ class T5SummarizationDistiller(BartSummarizationDistiller):
 def create_module(args):
     t5 = "t5" in args.model_name_or_path
     if args.no_teacher:
-        assert not args.enc_only
         module_cls = TranslationModule if 'translation' in args.task else SummarizationModule
     elif t5:  # DISTILL T5 WITH TEACHER FOR SUMMARIZATION
         assert 'translation' not in args.task, 't5 translation distillation not supported'
