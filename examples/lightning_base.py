@@ -190,9 +190,10 @@ class BaseTransformer(pl.LightningModule):
         parser.add_argument("--num_train_epochs", dest="max_epochs", default=3, type=int)
         parser.add_argument("--train_batch_size", default=32, type=int)
         parser.add_argument("--eval_batch_size", default=32, type=int)
-        parser.add_argument("--val_check_interval", default=1., type=float)
-        parser.add_argument("--gpus", default=1, type=int)
-        parser.add_argument("--fast_dev_run", action='store_true')
+
+        # parser.add_argument("--val_check_interval", default=1.0, type=float)
+        # parser.add_argument("--gpus", default=1, type=int)
+        # parser.add_argument("--fast_dev_run", action="store_true")
 
 
 
@@ -244,7 +245,7 @@ def add_generic_args(parser, root_dir) -> None:
         help="For fp16: Apex AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']."
         "See details at https://nvidia.github.io/apex/amp.html",
     )
-    parser.add_argument("--n_tpu_cores", dest="tpu_cores", type=int, default=0)
+    parser.add_argument("--n_tpu_cores", dest="tpu_cores", type=int, default=None)
     parser.add_argument("--max_grad_norm", dest="gradient_clip_val", default=1.0, type=float, help="Max gradient norm")
     parser.add_argument("--do_train", action="store_true", help="Whether to run training.")
     parser.add_argument("--do_predict", action="store_true", help="Whether to run predictions on the test set.")

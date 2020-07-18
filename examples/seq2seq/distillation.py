@@ -476,7 +476,12 @@ def distill_main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+<<<<<<< HEAD
     parser = BartTranslationDistiller.add_model_specific_args(parser, os.getcwd())
+=======
+    parser = pl.Trainer.add_argparse_args(parser)
+    parser = BartSummarizationDistiller.add_model_specific_args(parser, os.getcwd())
+>>>>>>> add-missing-clargs
     args = parser.parse_args()
     assert args.src_lang is not None
     assert args.tgt_lang is not None
