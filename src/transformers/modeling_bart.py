@@ -825,10 +825,10 @@ class BartModel(PretrainedBartModel):
         super().__init__(config)
 
         padding_idx, vocab_size = config.pad_token_id, config.vocab_size
-        self.shared = nn.Embedding(vocab_size, config.d_model, padding_idx)
+        shared = nn.Embedding(vocab_size, config.d_model, padding_idx)
 
-        self.encoder = BartEncoder(config, self.shared)
-        self.decoder = BartDecoder(config, self.shared)
+        self.encoder = BartEncoder(config, shared)
+        self.decoder = BartDecoder(config, shared)
 
         self.init_weights()
 
@@ -871,7 +871,7 @@ class BartModel(PretrainedBartModel):
                 input_ids,
                 decoder_input_ids=decoder_input_ids,
                 decoder_padding_mask=decoder_attention_mask,
-                causal_mask_dtype=self.shared.weight.dtype,
+                causal_mask_dtype=self.decoder.embed_tokens.weight.dtype,
             )
         else:
             decoder_padding_mask, causal_mask = None, None
@@ -922,15 +922,15 @@ class BartModel(PretrainedBartModel):
         )
 
     def get_input_embeddings(self):
-        return self.shared
+        return self.encoder.embed_tokens
 
     def set_input_embeddings(self, value):
-        self.shared = value
-        self.encoder.embed_tokens = self.shared
-        self.decoder.embed_tokens = self.shared
+        #self.shared = value
+        self.encoder.embed_tokens = value
+        self.decoder.embed_tokens = value
 
     def get_output_embeddings(self):
-        return _make_linear_from_emb(self.shared)  # make it on the fly
+        return _make_linear_from_emb(self.decoder.embed_tokens)  # make it on the fly
 
 
 @add_start_docstrings(
@@ -943,12 +943,13 @@ class BartForConditionalGeneration(PretrainedBartModel):
         super().__init__(config)
         base_model = BartModel(config)
         self.model = base_model
-        self.register_buffer("final_logits_bias", torch.zeros((1, self.model.shared.num_embeddings)))
+        self.register_buffer("final_logits_bias", torch.zeros((1, self.model.encoder.embed_tokens.num_embeddings)))
 
     def resize_token_embeddings(self, new_num_tokens: int) -> nn.Embedding:
-        old_num_tokens = self.model.shared.num_embeddings
+        old_num_tokens = self.model.encoder.embed_tokens.num_embeddings
         new_embeddings = super().resize_token_embeddings(new_num_tokens)
-        self.model.shared = new_embeddings
+        self.model.encoder.embed_tokens = new_embeddings
+        self.model.decoder.embed_tokens = new_embeddings
         self._resize_final_logits_bias(new_num_tokens, old_num_tokens)
         return new_embeddings
 
@@ -1034,7 +1035,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
             output_hidden_states=output_hidden_states,
             return_tuple=return_tuple,
         )
-        lm_logits = F.linear(outputs[0], self.model.shared.weight, bias=self.final_logits_bias)
+        lm_logits = F.linear(outputs[0], self.model.encoder.embed_tokens.weight, bias=self.final_logits_bias)
 
         masked_lm_loss = None
         if labels is not None:
@@ -1110,7 +1111,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
         return self.model.encoder
 
     def get_output_embeddings(self):
-        return _make_linear_from_emb(self.model.shared)  # make it on the fly
+        return _make_linear_from_emb(self.model.decoder.embed_tokens)  # make it on the fly
 
 
 @add_start_docstrings(
