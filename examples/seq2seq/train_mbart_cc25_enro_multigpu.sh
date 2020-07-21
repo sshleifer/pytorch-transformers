@@ -14,5 +14,5 @@ python finetune.py \
     --train_batch_size=$BS --eval_batch_size=$BS --gradient_accumulation_steps=$GAS \
     --tokenizer facebook/mbart-large-cc25 \
     --task translation \
-    --warmup_steps 500 --freeze_encoder --freeze_embeds \
+    --warmup_steps 500 --freeze_embeds \
     $@
