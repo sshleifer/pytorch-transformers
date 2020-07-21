@@ -135,7 +135,7 @@ class BARTModelTest(ModelTesterMixin, unittest.TestCase):
         model.to(torch_device)
         model.eval()
         # test init
-        self.assertTrue((model.encoder.embed_tokens.weight == model.shared.weight).all().item())
+        self.assertTrue((model.encoder.embed_tokens.weight == model.decoder.embed_tokens.weight).all().item())
 
         def _check_var(module):
             """Check that we initialized various parameters from N(0, config.init_std)."""
