@@ -254,8 +254,8 @@ class SummarizationModule(BaseTransformer):
         dataloader = self.get_dataloader("train", batch_size=self.hparams.train_batch_size, shuffle=True)
         t_total = (
             (len(dataloader.dataset) // (self.hparams.train_batch_size * max(1, self.hparams.gpus)))
-            // self.hparams.accumulate_grad_batches
-            * float(self.hparams.max_epochs)
+            // self.hparams.gradient_accumulation_steps
+            * float(self.hparams.num_train_epochs)
         )
         scheduler = get_linear_schedule_with_warmup(
             self.opt, num_warmup_steps=self.hparams.warmup_steps, num_training_steps=t_total
@@ -312,7 +312,7 @@ class SummarizationModule(BaseTransformer):
         parser.add_argument("--freeze_encoder", action="store_true")
         parser.add_argument("--freeze_embeds", action="store_true")
         parser.add_argument("--sortish_sampler", action="store_true", default=False)
-        parser.add_argument("--logger_name", type=str, choices=["default", "wandb", "wandb_shared"], default="default")
+        parser.add_argument("--logger", type=str, choices=["default", "wandb", "wandb_shared"], default="default")
         parser.add_argument("--n_train", type=int, default=-1, required=False, help="# examples. -1 means use all.")
         parser.add_argument("--n_val", type=int, default=500, required=False, help="# examples. -1 means use all.")
         parser.add_argument("--n_test", type=int, default=-1, required=False, help="# examples. -1 means use all.")
@@ -359,19 +359,18 @@ def main(args, model=None) -> SummarizationModule:
 
     dataset = Path(args.data_dir).name
     if (
-        args.logger_name == "default"
+        args.logger == "default"
         or args.fast_dev_run
         or str(args.output_dir).startswith("/tmp")
         or str(args.output_dir).startswith("/var")
     ):
         logger = True  # don't pollute wandb logs unnecessarily
-    elif args.logger_name == "wandb":
+    elif args.logger == "wandb":
         from pytorch_lightning.loggers import WandbLogger
 
         project = os.environ.get("WANDB_PROJECT", dataset)
         logger = WandbLogger(name=model.output_dir.name, project=project)
-
-    elif args.logger_name == "wandb_shared":
+    elif args.logger == "wandb_shared":
         from pytorch_lightning.loggers import WandbLogger
 
         logger = WandbLogger(name=model.output_dir.name, project=f"hf_{dataset}")
@@ -380,6 +379,7 @@ def main(args, model=None) -> SummarizationModule:
         es_callback = get_early_stopping_callback(model.val_metric, args.early_stopping_patience)
     else:
         es_callback = False
+
     trainer: pl.Trainer = generic_train(
         model,
         args,
@@ -399,17 +399,13 @@ def main(args, model=None) -> SummarizationModule:
         model.hparams.test_checkpoint = checkpoints[-1]
         trainer.resume_from_checkpoint = checkpoints[-1]
     trainer.logger.log_hyperparams(model.hparams)
-
-    # test() without a model tests using the best checkpoint automatically
-    trainer.test()
+    trainer.test(model)  # this breaks in DDP, known lightning issue. See evaluate_checkpoint to recover metrics.
     return model
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser = pl.Trainer.add_argparse_args(parser)
     parser = SummarizationModule.add_model_specific_args(parser, os.getcwd())
-
     args = parser.parse_args()
 
     main(args)
