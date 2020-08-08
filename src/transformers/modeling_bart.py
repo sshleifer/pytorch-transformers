@@ -840,8 +840,8 @@ class LearnedPositionalEmbedding(nn.Embedding):
             positions = torch.arange(seq_len, dtype=torch.long, device=self.weight.device)
         return super().forward(positions + self.offset)
 
-
-def LayerNorm(normalized_shape, eps=1e-5, elementwise_affine=True):
+EPS = 1e-12
+def LayerNorm(normalized_shape, eps=EPS, elementwise_affine=True):
     if torch.cuda.is_available():
         try:
             from apex.normalization import FusedLayerNorm
