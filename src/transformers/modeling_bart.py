@@ -863,6 +863,10 @@ def assert_zero_bias(layer):
 
 def print_tensor(msg, t):
     if not isinstance(t, torch.Tensor): return
+    if torch.isnan(t).any():
+        raise ValueError('got nan')
+    if torch.isinf(t).all():
+        raise ValueError('got inf')
     # assert t.shape
     if t.ndim == 1:   slice = t[:3]
     elif t.ndim == 2: slice = t[:3, :3]
