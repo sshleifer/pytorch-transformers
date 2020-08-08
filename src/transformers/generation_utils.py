@@ -653,7 +653,7 @@ class GenerationMixin:
                     next_token_logits, cur_len=cur_len, max_length=max_length
                 )
             print_tensor(f'cur_len={cur_len}. logits after adjust', next_token_logits)
-            scores = F.log_softmax(next_token_logits, dim=-1)  # (batch_size * num_beams, vocab_size)
+            scores = F.log_softmax(next_token_logits, dim=-1, dtype=torch.float32)  # (batch_size * num_beams, vocab_size)
             print_tensor(f'cur_len={cur_len}. after softmax', scores)
             scores = self.postprocess_next_token_scores(
                 scores=scores,
