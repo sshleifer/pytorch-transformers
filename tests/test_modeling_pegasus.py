@@ -24,7 +24,7 @@ class PegasusIntegrationTest(AbstractSeq2SeqIntegrationTest):
     def model(self):
         """Only load the model if needed."""
         model = AutoModelForSeq2SeqLM.from_pretrained(self.checkpoint_name).to(torch_device)
-        # if "cuda" in torch_device: model = model.half()
+        if "cuda" in torch_device: model = model.half()
         return model
     @slow
     def test_pegasus_xsum_summary(self):

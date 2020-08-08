@@ -840,7 +840,7 @@ class LearnedPositionalEmbedding(nn.Embedding):
             positions = torch.arange(seq_len, dtype=torch.long, device=self.weight.device)
         return super().forward(positions + self.offset)
 
-EPS = 1e-12
+EPS = 1e-3
 def LayerNorm(normalized_shape, eps=EPS, elementwise_affine=True):
     if torch.cuda.is_available():
         try:
