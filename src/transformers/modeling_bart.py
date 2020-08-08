@@ -873,7 +873,7 @@ def print_tensor(msg, t):
     elif t.ndim == 3: slice = t[:3, :3, :3]
     elif t.ndim == 4: slice = t[:3, :3, :3, :3]
 
-    print(f"{msg}: shape: {t.shape}, slice: {slice}")
+    print(f"{msg}: shape: {t.shape}, slice: {slice}, max: {t.max()}")
 
 
 @add_start_docstrings(
