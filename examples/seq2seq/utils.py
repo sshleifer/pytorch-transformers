@@ -87,6 +87,7 @@ class Seq2SeqDataset(Dataset):
         prefix="",
     ):
         super().__init__()
+        self.type_path = type_path
         self.src_file = Path(data_dir).joinpath(type_path + ".source")
         self.tgt_file = Path(data_dir).joinpath(type_path + ".target")
         self.src_lens = self.get_char_lens(self.src_file)
@@ -151,7 +152,7 @@ class TranslationDataset(Seq2SeqDataset):
         super().__init__(*args, **kwargs)
         if self.max_source_length != self.max_target_length:
             warnings.warn(
-                f"Mbart is using sequence lengths {self.max_source_length}, {self.max_target_length}. "
+                f"Dataset for {self.type_path} is using sequence lengths src: {self.max_source_length}, tgt: {self.max_target_length}. "
                 f"Imbalanced sequence lengths may be undesired for translation tasks"
             )
 
@@ -172,6 +173,18 @@ class TranslationDataset(Seq2SeqDataset):
             src_lang=self.src_lang,
             tgt_texts=[x["tgt_texts"] for x in batch],
             tgt_lang=self.tgt_lang,
+            max_length=self.max_source_length,
+            max_target_length=self.max_target_length,
+        )
+        return batch_encoding.data
+
+
+class PegasusDataset(TranslationDataset):
+    def collate_fn(self, batch) -> Dict[str, torch.Tensor]:
+        self.tokenizer  # type: ReformerTokenizer
+        batch_encoding = self.tokenizer.prepare_seq2seq_batch(
+            [x["src_texts"] for x in batch],
+            tgt_texts=[x["tgt_texts"] for x in batch],
             max_length=self.max_source_length,
             max_target_length=self.max_target_length,
         )

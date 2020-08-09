@@ -242,13 +242,13 @@ def test_finetune(model):
     args_d: dict = CHEAP_ARGS.copy()
     task = "translation" if model in [MBART_TINY, MARIAN_TINY] else "summarization"
     args_d["label_smoothing"] = 0.1 if task == "translation" else 0
-
+    tokenizer_name = "google/pegasus-large" if model == BART_TINY else None
     tmp_dir = make_test_data_dir()
     output_dir = tempfile.mkdtemp(prefix="output_")
     args_d.update(
         data_dir=tmp_dir,
         model_name_or_path=model,
-        tokenizer_name=None,
+        tokenizer_name=tokenizer_name,
         train_batch_size=2,
         eval_batch_size=2,
         output_dir=output_dir,

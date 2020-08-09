@@ -87,6 +87,7 @@ class PegasusTokenizer(ReformerTokenizer):
         src_texts: List[str],
         tgt_texts: Optional[List[str]] = None,
         max_length: Optional[int] = None,
+        max_target_length: Optional[int] = None,
         pad_to_max_length: bool = True,
         return_tensors: str = "pt",
         truncation=True,
@@ -107,6 +108,7 @@ class PegasusTokenizer(ReformerTokenizer):
         """
         if "" in src_texts:
             raise ValueError(f"found empty string in src_texts: {src_texts}")
+
         tokenizer_kwargs = dict(
             add_special_tokens=True,
             return_tensors=return_tensors,
@@ -118,6 +120,9 @@ class PegasusTokenizer(ReformerTokenizer):
         model_inputs: BatchEncoding = self(src_texts, **tokenizer_kwargs)
         if tgt_texts is None:
             return model_inputs
+        if max_target_length is not None:
+            tokenizer_kwargs["max_length"] = max_target_length
+        tgt_texts = ["<pad> " + x for x in tgt_texts]
         decoder_inputs: BatchEncoding = self(tgt_texts, **tokenizer_kwargs)
         for k, v in decoder_inputs.items():
             model_inputs[f"decoder_{k}"] = v

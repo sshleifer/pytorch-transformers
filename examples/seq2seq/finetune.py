@@ -14,7 +14,13 @@ import torch
 from torch.utils.data import DataLoader
 
 from lightning_base import BaseTransformer, add_generic_args, generic_train
-from transformers import MarianTokenizer, MBartTokenizer, T5ForConditionalGeneration, get_linear_schedule_with_warmup
+from transformers import (
+    MarianTokenizer,
+    MBartTokenizer,
+    PegasusTokenizer,
+    T5ForConditionalGeneration,
+    get_linear_schedule_with_warmup,
+)
 
 
 try:
@@ -32,6 +38,7 @@ try:
         ROUGE_KEYS,
         calculate_bleu_score,
         Seq2SeqDataset,
+        PegasusDataset,
         TranslationDataset,
         label_smoothed_nll_loss,
     )
@@ -41,6 +48,7 @@ except ImportError:
     from utils import (
         Seq2SeqDataset,
         TranslationDataset,
+        PegasusDataset,
         assert_all_frozen,
         use_task_specific_params,
         lmap,
@@ -110,6 +118,8 @@ class SummarizationModule(BaseTransformer):
             self.model.config.decoder_start_token_id = self.decoder_start_token_id
         if isinstance(self.tokenizer, MBartTokenizer) or isinstance(self.tokenizer, MarianTokenizer):
             self.dataset_class = TranslationDataset
+        elif isinstance(self.tokenizer, PegasusTokenizer):
+            self.dataset_class = PegasusDataset
         else:
             self.dataset_class = Seq2SeqDataset
 
