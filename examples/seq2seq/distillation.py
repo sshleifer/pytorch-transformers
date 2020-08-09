@@ -364,12 +364,9 @@ class T5SummarizationDistiller(BartSummarizationDistiller):
 def create_module(args):
     t5 = "t5" in args.model_name_or_path
     if args.no_teacher:
-        assert not args.enc_only
         module_cls = SummarizationModule
     elif t5:
         module_cls = T5SummarizationDistiller
-    elif args.enc_only:
-        raise ValueError("Deleted that")
     else:
         module_cls = BartSummarizationDistiller
     args.setup_cls: str = module_cls.__name__
