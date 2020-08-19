@@ -103,6 +103,7 @@ class SummarizationModule(BaseTransformer):
         if self.hparams.freeze_encoder:
             freeze_params(self.model.get_encoder())
             assert_all_frozen(self.model.get_encoder())
+        self.randomly_freeze_n_layers() # so that grad_mp logging is accurate
 
         self.hparams.git_sha = get_git_info()["repo_sha"]
         self.num_workers = hparams.num_workers
