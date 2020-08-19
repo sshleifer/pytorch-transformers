@@ -279,6 +279,11 @@ def freeze_params(model: nn.Module):
         par.requires_grad = False
 
 
+def unfreeze_params(model: nn.Module):
+    for par in model.parameters():
+        par.requires_grad = True
+
+
 def grad_status(model: nn.Module) -> Iterable:
     return (par.requires_grad for par in model.parameters())
 

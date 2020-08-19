@@ -30,6 +30,7 @@ logger = logging.getLogger()
 CUDA_AVAILABLE = torch.cuda.is_available()
 CHEAP_ARGS = {
     "label_smoothing": 0.2,
+    "n_layers_to_freeze": 1,
     "early_stopping_patience": 2,
     "logger_name": "default",
     "length_penalty": 0.5,
@@ -57,7 +58,7 @@ CHEAP_ARGS = {
     "server_ip": "",
     "server_port": "",
     "seed": 42,
-    "model_name_or_path": "sshleifer/bart-tiny-random",
+    "model_name_or_path": "sshleifer/bart-tiny-random",  # TODO(SS): use constant
     "config_name": "",
     "tokenizer_name": "facebook/bart-large",
     "do_lower_case": False,

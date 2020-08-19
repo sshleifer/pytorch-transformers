@@ -33,6 +33,7 @@ try:
         Seq2SeqDataset,
         TranslationDataset,
         label_smoothed_nll_loss,
+        unfreeze_params,
     )
 
     from .callbacks import Seq2SeqLoggingCallback, get_checkpoint_callback, get_early_stopping_callback
@@ -53,6 +54,7 @@ except ImportError:
         ROUGE_KEYS,
         calculate_bleu_score,
         label_smoothed_nll_loss,
+        unfreeze_params,
     )
     from callbacks import Seq2SeqLoggingCallback, get_checkpoint_callback, get_early_stopping_callback
 
@@ -69,6 +71,7 @@ class SummarizationModule(BaseTransformer):
         super().__init__(hparams, num_labels=None, mode=self.mode, **kwargs)
         use_task_specific_params(self.model, "summarization")
         save_git_info(self.hparams.output_dir)
+        self.n_to_freeze = hparams.n_layers_to_freeze
         self.metrics_save_path = Path(self.output_dir) / "metrics.json"
         self.hparams_save_path = Path(self.output_dir) / "hparams.pkl"
         pickle_save(self.hparams, self.hparams_save_path)
@@ -133,7 +136,35 @@ class SummarizationModule(BaseTransformer):
         )
         return lmap(str.strip, gen_text)
 
+    def randomly_freeze_n_layers(self) -> None:
+        try:
+            elayers, dlayers = self.model.model.encoder.layers, self.model.model.decoder.layers
+        except AttributeError:
+            # T5 Case
+            elayers, dlayers = [self.model.encoder.block, self.model.decoder.block]
+        # all_layers = self.model.model.encoder.layers + self.model.model.decoder.layers
+        n_layers = len(elayers) + len(dlayers)
+        import numpy as np
+
+        layers_to_freeze = np.random.choice(list(range(n_layers)), size=self.n_to_freeze, replace=False)
+        for layer_num in layers_to_freeze:
+            if layer_num < len(elayers):  # Intentionally not <=
+                freeze_params(elayers[layer_num])
+            else:
+                freeze_params((dlayers[layer_num - len(elayers)]))
+        return None
+
+    def unfreeze_everything(self) -> None:
+        unfreeze_params(self.model)
+        if self.hparams.freeze_embeds:
+            self.freeze_embeds()
+        if self.hparams.freeze_encoder:
+            freeze_params(self.model.get_encoder())
+            assert_all_frozen(self.model.get_encoder())
+        return None
+
     def _step(self, batch: dict) -> Tuple:
+        self.randomly_freeze_n_layers()
         pad_token_id = self.tokenizer.pad_token_id
         source_ids, source_mask, target_ids = batch["input_ids"], batch["attention_mask"], batch["decoder_input_ids"]
 
@@ -157,6 +188,7 @@ class SummarizationModule(BaseTransformer):
             loss, nll_loss = label_smoothed_nll_loss(
                 lprobs, lm_labels, self.hparams.label_smoothing, ignore_index=pad_token_id
             )
+        self.unfreeze_everything()
         return (loss,)
 
     @property
@@ -294,6 +326,7 @@ class SummarizationModule(BaseTransformer):
         parser.add_argument("--freeze_encoder", action="store_true")
         parser.add_argument("--freeze_embeds", action="store_true")
         parser.add_argument("--sortish_sampler", action="store_true", default=False)
+        parser.add_argument("--n_layers_to_freeze", type=int, default=12)
         parser.add_argument("--logger_name", type=str, choices=["default", "wandb", "wandb_shared"], default="default")
         parser.add_argument("--n_train", type=int, default=-1, required=False, help="# examples. -1 means use all.")
         parser.add_argument("--n_val", type=int, default=500, required=False, help="# examples. -1 means use all.")
@@ -316,7 +349,7 @@ class SummarizationModule(BaseTransformer):
 
 class TranslationModule(SummarizationModule):
     mode = "translation"
-    loss_names = ["loss"]
+    # loss_names = ["loss"]
     metric_names = ["bleu"]
     val_metric = "bleu"
 
