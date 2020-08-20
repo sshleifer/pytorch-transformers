@@ -282,7 +282,7 @@ def test_finetune(model):
         task=task,
         src_lang="en_XX",
         tgt_lang="ro_RO",
-        freeze_encoder=True,
+        freeze_encoder=False,
         freeze_embeds=True,
     )
     assert "n_train" in args_d

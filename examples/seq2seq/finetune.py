@@ -36,7 +36,7 @@ try:
         unfreeze_params,
     )
 
-    from .callbacks import Seq2SeqLoggingCallback, get_checkpoint_callback, get_early_stopping_callback
+    from .callbacks import Seq2SeqLoggingCallback, get_checkpoint_callback, get_early_stopping_callback, count_trainable_parameters
 except ImportError:
     from utils import (
         Seq2SeqDataset,
@@ -56,7 +56,7 @@ except ImportError:
         label_smoothed_nll_loss,
         unfreeze_params,
     )
-    from callbacks import Seq2SeqLoggingCallback, get_checkpoint_callback, get_early_stopping_callback
+    from callbacks import Seq2SeqLoggingCallback, get_checkpoint_callback, get_early_stopping_callback,  count_trainable_parameters
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +103,7 @@ class SummarizationModule(BaseTransformer):
         if self.hparams.freeze_encoder:
             freeze_params(self.model.get_encoder())
             assert_all_frozen(self.model.get_encoder())
-        self.randomly_freeze_n_layers() # so that grad_mp logging is accurate
+        self.freeze_n_rand_layers()  # so that grad_mp logging is accurate
 
         self.hparams.git_sha = get_git_info()["repo_sha"]
         self.num_workers = hparams.num_workers
@@ -137,13 +137,16 @@ class SummarizationModule(BaseTransformer):
         )
         return lmap(str.strip, gen_text)
 
-    def randomly_freeze_n_layers(self) -> None:
+    def freeze_n_rand_layers(self) -> None:
+        self.unfreeze_everything()
+        assert not self.hparams.freeze_encoder
         try:
             elayers, dlayers = self.model.model.encoder.layers, self.model.model.decoder.layers
         except AttributeError:
             # T5 Case
             elayers, dlayers = [self.model.encoder.block, self.model.decoder.block]
         # all_layers = self.model.model.encoder.layers + self.model.model.decoder.layers
+        start_grad_mp = count_trainable_parameters(self)
         n_layers = len(elayers) + len(dlayers)
         import numpy as np
 
@@ -153,6 +156,8 @@ class SummarizationModule(BaseTransformer):
                 freeze_params(elayers[layer_num])
             else:
                 freeze_params((dlayers[layer_num - len(elayers)]))
+        grad_mp = count_trainable_parameters(self)
+        assert grad_mp < start_grad_mp
         return None
 
     def unfreeze_everything(self) -> None:
@@ -165,7 +170,7 @@ class SummarizationModule(BaseTransformer):
         return None
 
     def _step(self, batch: dict) -> Tuple:
-        self.randomly_freeze_n_layers()
+        self.freeze_n_rand_layers()
         pad_token_id = self.tokenizer.pad_token_id
         source_ids, source_mask, target_ids = batch["input_ids"], batch["attention_mask"], batch["decoder_input_ids"]
 
@@ -189,7 +194,7 @@ class SummarizationModule(BaseTransformer):
             loss, nll_loss = label_smoothed_nll_loss(
                 lprobs, lm_labels, self.hparams.label_smoothing, ignore_index=pad_token_id
             )
-        self.unfreeze_everything()
+
         return (loss,)
 
     @property
