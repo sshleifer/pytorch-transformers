@@ -139,7 +139,7 @@ class BartConfig(PretrainedConfig):
         normalize_embedding=True,
         static_position_embeddings=False,
         add_bias_logits=False,
-        force_bos_token_to_be_generated=False,
+        force_bos_token_to_be_generated=True, #DEL
         **common_kwargs
     ):
         r"""
