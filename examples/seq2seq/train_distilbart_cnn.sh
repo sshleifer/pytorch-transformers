@@ -12,13 +12,12 @@ python finetune.py \
     --do_predict \
     --val_check_interval 0.25 \
     --n_val 500 \
-    --num_train_epochs 2 \
+    --num_train_epochs 3 \
     --freeze_encoder --freeze_embeds --data_dir $CNN_DIR \
     --max_target_length 142 --val_max_target_length=142 \
     --train_batch_size=$BS --eval_batch_size=$BS --gradient_accumulation_steps=$GAS \
     --model_name_or_path sshleifer/student_cnn_12_3 \
     --tokenizer_name facebook/bart-large \
     --warmup_steps 500 \
-    --output_dir distilbart-cnn-12-6 \
     "$@"
 
