@@ -642,12 +642,13 @@ class GenerationMixin:
         done = [False for _ in range(batch_size)]
 
         while cur_len < max_length:
+            print(f'step: {cur_len}')
             model_inputs = self.prepare_inputs_for_generation(
                 input_ids, past=past, attention_mask=attention_mask, use_cache=use_cache, **model_specific_kwargs
             )
             outputs = self(**model_inputs)  # (batch_size * num_beams, cur_len, vocab_size)
             next_token_logits = outputs[0][:, -1, :]  # (batch_size * num_beams, vocab_size)
-
+            import ipdb; ipdb.set_trace()
             # if model has past, then set the past variable to speed up decoding
             if self._use_cache(outputs, use_cache):
                 past = outputs[1]
@@ -656,6 +657,7 @@ class GenerationMixin:
                 next_token_logits = self.adjust_logits_during_generation(
                     next_token_logits, cur_len=cur_len, max_length=max_length
                 )
+
 
             scores = F.log_softmax(next_token_logits, dim=-1)  # (batch_size * num_beams, vocab_size)
 
