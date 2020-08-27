@@ -29,6 +29,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
 CUDA_AVAILABLE = torch.cuda.is_available()
 CHEAP_ARGS = {
+    "adafactor": True,
     "label_smoothing": 0.2,
     "early_stopping_patience": 2,
     "logger_name": "default",
@@ -324,7 +325,7 @@ def test_finetune(model):
 
     example_batch = load_json(module.output_dir / "text_batch.json")
     assert isinstance(example_batch, dict)
-    assert len(example_batch) >= 5
+    assert len(example_batch) == 4
 
 
 def test_finetune_extra_model_args():
