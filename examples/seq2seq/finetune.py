@@ -217,6 +217,7 @@ class SummarizationModule(BaseTransformer):
             decoder_start_token_id=0,
             num_beams=2, #DELME
             length_penalty=0.5,
+            max_length=56,
         )
         gen_time = (time.time() - t0) / batch["input_ids"].shape[0]
         preds: List[str] = self.ids_to_clean_text(generated_ids)
