@@ -55,8 +55,9 @@ except ImportError:
         save_json,
         use_task_specific_params,
     )
-
-logger = logging.getLogger(__name__)
+from transformers.utils.logging import get_logger, ERROR
+logger = get_logger('seq2seq/finetune')
+logger.setLevel(ERROR)
 
 
 class SummarizationModule(BaseTransformer):
@@ -155,8 +156,7 @@ class SummarizationModule(BaseTransformer):
 
         outputs = self(source_ids, attention_mask=source_mask, decoder_input_ids=decoder_input_ids, use_cache=False)
         if not self.already_saved_batch:
-            batch["passed_labels"] = lm_labels
-            batch["passed_decoder_input_ids"] = decoder_input_ids
+            batch["decoder_input_ids"] = decoder_input_ids
             self.save_readable_batch(batch)
 
         if self.hparams.label_smoothing == 0:
@@ -214,7 +214,9 @@ class SummarizationModule(BaseTransformer):
             batch["input_ids"],
             attention_mask=batch["attention_mask"],
             use_cache=True,
-            decoder_start_token_id=self.decoder_start_token_id,
+            decoder_start_token_id=0,
+            num_beams=2, #DELME
+            length_penalty=0.5,
         )
         gen_time = (time.time() - t0) / batch["input_ids"].shape[0]
         preds: List[str] = self.ids_to_clean_text(generated_ids)

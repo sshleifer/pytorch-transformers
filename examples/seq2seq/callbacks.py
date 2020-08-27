@@ -74,6 +74,9 @@ class Seq2SeqLoggingCallback(pl.Callback):
     def on_test_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         return self._write_logs(trainer, pl_module, "test")
 
+    def on_epoch_end(self, trainer, pl_module):
+        return self._write_logs(trainer, pl_module, "val")
+
 
 def get_checkpoint_callback(output_dir, metric):
     """Saves the best model by validation ROUGE2 score."""

@@ -322,7 +322,7 @@ def test_finetune(model):
         assert bart.decoder.embed_tokens == bart.encoder.embed_tokens
         assert bart.decoder.embed_tokens == bart.shared
 
-    example_batch = load_json(module.output_dir / "batch.json")
+    example_batch = load_json(module.output_dir / "text_batch.json")
     assert isinstance(example_batch, dict)
     assert len(example_batch) >= 5
 
