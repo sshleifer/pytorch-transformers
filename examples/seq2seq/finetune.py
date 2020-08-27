@@ -159,6 +159,7 @@ class SummarizationModule(BaseTransformer):
             batch["passed_decoder_input_ids"] = decoder_input_ids
             self.save_readable_batch(batch)
 
+        import ipdb; ipdb.set_trace()
         if self.hparams.label_smoothing == 0:
             # Same behavior as modeling_bart.py, besides pad_token_id
             loss_fct = torch.nn.CrossEntropyLoss(ignore_index=pad_token_id)
@@ -166,6 +167,7 @@ class SummarizationModule(BaseTransformer):
             assert lm_logits.shape[-1] == self.model.config.vocab_size
             loss = loss_fct(lm_logits.view(-1, lm_logits.shape[-1]), lm_labels.view(-1))
         else:
+            raise ValueError()
             lprobs = torch.nn.functional.log_softmax(outputs[0], dim=-1)
             loss, _ = label_smoothed_nll_loss(
                 lprobs, lm_labels, self.hparams.label_smoothing, ignore_index=pad_token_id
@@ -344,8 +346,6 @@ class TranslationModule(SummarizationModule):
 
 def main(args, model=None) -> SummarizationModule:
     Path(args.output_dir).mkdir(exist_ok=True)
-    if len(os.listdir(args.output_dir)) > 3 and args.do_train:
-        raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
     if model is None:
         if args.task == "summarization":
             model: SummarizationModule = SummarizationModule(args)
