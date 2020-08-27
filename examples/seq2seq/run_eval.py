@@ -9,7 +9,7 @@ from typing import Dict, List
 import torch
 from tqdm import tqdm
 
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, MarianTokenizer
 
 
 logger = getLogger(__name__)
@@ -46,7 +46,10 @@ def generate_summaries_or_translations(
     if fp16:
         model = model.half()
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+    except Exception:
+        tokenizer = MarianTokenizer.from_pretrained(model_name)
     logger.info(f"Inferred tokenizer type: {tokenizer.__class__}")  # if this is wrong, check config.model_type.
 
     start_time = time.time()
