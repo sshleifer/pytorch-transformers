@@ -614,7 +614,7 @@ class BartDecoder(nn.Module):
                 x = self.layer_norm(x)
             if output_attentions:
                 all_self_attns += (layer_self_attn,)
-
+        break_nan(x)
         # Convert to standard output format: (seq_len, BS, model_dim) -> (BS, seq_len, model_dim)
         if output_hidden_states:
             all_hidden_states = tuple(hidden_state.transpose(0, 1) for hidden_state in all_hidden_states)
@@ -1072,7 +1072,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
 
         if labels is not None:
             use_cache = False
-            decoder_input_ids = shift_tokens_right(labels, self.config.pad_token_id)
+            #decoder_input_ids = shift_tokens_right(labels, self.config.pad_token_id)
 
         outputs = self.model(
             input_ids,
@@ -1086,7 +1086,9 @@ class BartForConditionalGeneration(PretrainedBartModel):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )
+        break_nan(outputs[0])
         lm_logits = F.linear(outputs[0], self.model.shared.weight, bias=self.final_logits_bias)
+        break_nan(lm_logits)
 
         masked_lm_loss = None
         if labels is not None:
