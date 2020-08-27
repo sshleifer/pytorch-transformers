@@ -9,7 +9,7 @@ from typing import Dict, List
 import torch
 from tqdm import tqdm
 
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, MarianTokenizer
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, MarianTokenizer, MarianMTModel
 
 
 logger = getLogger(__name__)
@@ -42,7 +42,7 @@ def generate_summaries_or_translations(
     """Save model.generate results to <out_file>, and return how long it took."""
     fout = Path(out_file).open("w", encoding="utf-8")
     model_name = str(model_name)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(device)
+    model = MarianMTModel.from_pretrained(model_name).to(device)
     if fp16:
         model = model.half()
 
