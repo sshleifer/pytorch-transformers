@@ -63,7 +63,9 @@ def calculate_bleu(output_lns, refs_lns, **kwargs) -> dict:
 
 
 def trim_batch(
-    input_ids, pad_token_id, attention_mask=None,
+    input_ids,
+    pad_token_id,
+    attention_mask=None,
 ):
     """Remove columns that are populated exclusively by pad_token_id"""
     keep_column_mask = input_ids.ne(pad_token_id).any(dim=0)
@@ -174,7 +176,7 @@ class TranslationDataset(Seq2SeqDataset):
             tgt_lang=self.tgt_lang,
             max_length=self.max_source_length,
             max_target_length=self.max_target_length,
-            return_tensors='pt',
+            return_tensors="pt",
         )
         return batch_encoding.data
 

@@ -1,6 +1,7 @@
 import argparse
 import gc
 import os
+import warnings
 from pathlib import Path
 from typing import List
 
@@ -10,7 +11,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from lightning_base import generic_train
-from transformers import BartConfig, BartForConditionalGeneration, MBartTokenizer, T5Config, T5ForConditionalGeneration
+from transformers import AutoModelForSeq2SeqLM, MBartTokenizer, T5Config, T5ForConditionalGeneration
 from transformers.modeling_bart import shift_tokens_right
 
 
@@ -23,9 +24,9 @@ try:
         assert_all_frozen,
         calculate_bleu,
         freeze_params,
+        label_smoothed_nll_loss,
         pickle_load,
         use_task_specific_params,
-    label_smoothed_nll_loss,
     )
 except ImportError:
     from finetune import SummarizationModule, TranslationModule
@@ -36,9 +37,9 @@ except ImportError:
         assert_all_frozen,
         calculate_bleu,
         freeze_params,
+        label_smoothed_nll_loss,
         pickle_load,
         use_task_specific_params,
-        label_smoothed_nll_loss,
     )
 
 
@@ -77,22 +78,22 @@ class BartSummarizationDistiller(SummarizationModule):
     def pre_init(self, hparams):
         self.output_dir = Path(hparams.output_dir)
         self.output_dir.mkdir(exist_ok=True)
-        teacher = BartForConditionalGeneration.from_pretrained(hparams.teacher).eval()
+        teacher = AutoModelForSeq2SeqLM.from_pretrained(hparams.teacher).eval()
         student_updates = {
             "decoder_layers": hparams.student_decoder_layers,
             "encoder_layers": hparams.student_encoder_layers,
         }
         if hparams.length_penalty != -1:
             student_updates["length_penalty"] = hparams.length_penalty
-        d_layers_to_copy = get_layers_to_copy(student_updates["decoder_layers"], teacher.config.decoder_layers)
+        d_layers_to_copy: List = get_layers_to_copy(student_updates["decoder_layers"], teacher.config.decoder_layers)
         e_layers_to_copy: List = get_layers_to_copy(student_updates["encoder_layers"], teacher.config.encoder_layers)
         hparams.d_layer_to_copy = d_layers_to_copy
         hparams.e_layer_to_copy = e_layers_to_copy
         kw = teacher.config.to_diff_dict()
         kw.update(student_updates)
         # Copy weights
-        student_cfg = BartConfig(**kw)
-        student = BartForConditionalGeneration(student_cfg)
+        student_cfg = teacher.config_class(**kw)
+        student = type(teacher)(student_cfg)
         student, _ = init_student(student, teacher)
         save_dir = self.output_dir.joinpath("student")
         self.copy_to_student(d_layers_to_copy, e_layers_to_copy, hparams, student, teacher)
@@ -177,16 +178,16 @@ class BartSummarizationDistiller(SummarizationModule):
             input_ids,
             attention_mask=src_mask,
             decoder_input_ids=decoder_input_ids,
-            #labels=labels,
+            # labels=labels,
             output_hidden_states=True,
             output_attentions=False,
-            #return_dict=True,
+            # return_dict=True,
             use_cache=False,
         )
         lm_logits, dec_hidden, enc_outputs, enc_hidden_state = outputs
 
         if not self.already_saved_batch:
-            batch['decoder_input_ids'] = decoder_input_ids
+            batch["decoder_input_ids"] = decoder_input_ids
             self.save_readable_batch(batch)
 
         if self.hparams.label_smoothing == 0:
@@ -200,7 +201,6 @@ class BartSummarizationDistiller(SummarizationModule):
             sloss, _ = label_smoothed_nll_loss(
                 lprobs, lm_labels, self.hparams.label_smoothing, ignore_index=pad_token_id
             )
-
 
         def zero_tensor():
             return torch.tensor(0.0).type_as(sloss)
@@ -375,7 +375,10 @@ class T5SummarizationDistiller(BartSummarizationDistiller):
         if self.different_encoder:
             with torch.no_grad():
                 teacher_enc_outputs, teacher_enc_hid = self.teacher.encoder(
-                    source_ids, attention_mask=source_mask, output_hidden_states=True, use_cache=False,
+                    source_ids,
+                    attention_mask=source_mask,
+                    output_hidden_states=True,
+                    use_cache=False,
                 )
             if self.hparams.alpha_encoder_loss > 0:
                 loss_encoder = self.calc_mse_loss(enc_outputs, teacher_enc_outputs, source_mask)
@@ -393,7 +396,7 @@ class T5SummarizationDistiller(BartSummarizationDistiller):
                 attention_mask=source_mask,
                 encoder_outputs=teacher_enc_outputs,
                 decoder_input_ids=decoder_input_ids,
-                lm_labels=labels,
+                labels=labels,
                 output_hidden_states=True,
                 use_cache=False,
             )
@@ -469,17 +472,19 @@ LAYERS_TO_COPY = {
         6: [0, 3, 6, 9, 12, 15],
         8: [0, 2, 4, 6, 8, 10, 12, 15],
         9: [0, 1, 3, 5, 7, 9, 11, 13, 15],
-        16: list(range(16)), },
-    6: {1: [0], 2: [0, 5], 3: [0, 2, 5], 4: [0, 1, 3, 5], 6: list(range(6))}
+        16: list(range(16)),
+    },
+    6: {1: [0], 2: [0, 5], 3: [0, 2, 5], 4: [0, 1, 3, 5], 6: list(range(6))},
 }
 
-import warnings
 
 def get_layers_to_copy(n_student, n_teacher):
     try:
         return LAYERS_TO_COPY[n_teacher][n_student]
     except KeyError:
-        warnings.warn(f'no hardcoded layers to copy for teacher {n_teacher} -> student {n_student}, defaulting to first {n_student}')
+        warnings.warn(
+            f"no hardcoded layers to copy for teacher {n_teacher} -> student {n_student}, defaulting to first {n_student}"
+        )
         return list(range(n_student))
 
 

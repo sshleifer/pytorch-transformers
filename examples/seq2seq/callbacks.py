@@ -70,7 +70,6 @@ class Seq2SeqLoggingCallback(pl.Callback):
         # mp stands for million parameters
         trainer.logger.log_metrics({"n_params": npars, "mp": npars / 1e6, "grad_mp": n_trainable_pars / 1e6})
 
-
     @rank_zero_only
     def on_test_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         return self._write_logs(trainer, pl_module, "test")
@@ -98,4 +97,9 @@ def get_checkpoint_callback(output_dir, metric):
 
 
 def get_early_stopping_callback(metric, patience):
-    return EarlyStopping(monitor=f"val_{metric}", mode="max", patience=patience, verbose=True,)
+    return EarlyStopping(
+        monitor=f"val_{metric}",
+        mode="max",
+        patience=patience,
+        verbose=True,
+    )

@@ -1,6 +1,7 @@
 import argparse
 import json
 import time
+import warnings
 from logging import getLogger
 from pathlib import Path
 from typing import Dict, List
@@ -8,8 +9,8 @@ from typing import Dict, List
 import torch
 from tqdm import tqdm
 
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
-import warnings
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, MarianTokenizer, MarianMTModel
+
 
 logger = getLogger(__name__)
 
@@ -41,11 +42,14 @@ def generate_summaries_or_translations(
     """Save model.generate results to <out_file>, and return how long it took."""
     fout = Path(out_file).open("w", encoding="utf-8")
     model_name = str(model_name)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(device)
+    model = MarianMTModel.from_pretrained(model_name).to(device)
     if fp16:
         model = model.half()
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+    except Exception:
+        tokenizer = MarianTokenizer.from_pretrained(model_name)
     logger.info(f"Inferred tokenizer type: {tokenizer.__class__}")  # if this is wrong, check config.model_type.
 
     start_time = time.time()
@@ -93,7 +97,7 @@ def run_generate():
         type=int,
         default=None,
         required=False,
-        help="decoder_start_token_id (otherwise will look at config)",
+        help="Defaults to using config",
     )
     parser.add_argument(
         "--n_obs", type=int, default=-1, required=False, help="How many observations. Defaults to all."
@@ -105,7 +109,7 @@ def run_generate():
         examples = examples[: args.n_obs]
     Path(args.save_path).parent.mkdir(exist_ok=True)
     if args.reference_path is None and Path(args.score_path).exists():
-        warnings.warn(f'score_path {args.score_path} will be overwritten unless you type ctrl-c.')
+        warnings.warn(f"score_path {args.score_path} will be overwritten unless you type ctrl-c.")
     runtime_metrics = generate_summaries_or_translations(
         examples,
         args.save_path,
