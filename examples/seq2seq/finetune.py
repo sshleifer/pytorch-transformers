@@ -159,7 +159,6 @@ class SummarizationModule(BaseTransformer):
             batch["passed_decoder_input_ids"] = decoder_input_ids
             self.save_readable_batch(batch)
 
-        import ipdb; ipdb.set_trace()
         if self.hparams.label_smoothing == 0:
             # Same behavior as modeling_bart.py, besides pad_token_id
             loss_fct = torch.nn.CrossEntropyLoss(ignore_index=pad_token_id)
