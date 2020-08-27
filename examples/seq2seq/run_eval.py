@@ -9,7 +9,7 @@ from typing import Dict, List
 import torch
 from tqdm import tqdm
 
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, MarianTokenizer, MarianMTModel
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, MarianTokenizer, MarianMTModel, PegasusForConditionalGeneration
 
 
 logger = getLogger(__name__)
@@ -32,6 +32,7 @@ def generate_summaries_or_translations(
     examples: List[str],
     out_file: str,
     model_name: str,
+    model=None,
     batch_size: int = 8,
     device: str = DEFAULT_DEVICE,
     fp16=False,
@@ -41,8 +42,9 @@ def generate_summaries_or_translations(
 ) -> Dict:
     """Save model.generate results to <out_file>, and return how long it took."""
     fout = Path(out_file).open("w", encoding="utf-8")
-    model_name = str(model_name)
-    model = MarianMTModel.from_pretrained(model_name).to(device)
+    if model is None:
+        model_name = str(model_name)
+        model = PegasusForConditionalGeneration.from_pretrained(model_name).to(device)
     if fp16:
         model = model.half()
 
