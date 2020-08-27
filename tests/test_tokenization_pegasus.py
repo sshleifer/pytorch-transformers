@@ -66,3 +66,5 @@ class PegasusTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         assert "labels" in batch  # because tgt_texts was specified
         assert batch.labels.shape == (2, 5)
         assert len(batch) == 3  # input_ids, attention_mask, labels. Other things make by BartModel
+        from transformers.modeling_bart import shift_tokens_right
+        decoder_input_ids = shift_tokens_right(batch.labels, self.pegasus_large_tokenizer.pad_token_id)
