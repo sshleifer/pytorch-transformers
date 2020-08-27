@@ -199,6 +199,10 @@ def _check_shapes(shape_1, shape2):
     if shape_1 != shape2:
         raise AssertionError("shape mismatch: {} != {}".format(shape_1, shape2))
 
+def break_nan(t):
+    if torch.isnan(t).any():
+        import ipdb; ipdb.set_trace()
+
 
 def shift_tokens_right(input_ids, pad_token_id):
     decoder_start_token_id = pad_token_id
@@ -601,6 +605,7 @@ class BartDecoder(nn.Module):
                 causal_mask=decoder_causal_mask,
                 output_attentions=output_attentions,
             )
+            break_nan(x)
 
             if use_cache:
                 next_decoder_cache.append(layer_past.copy())
