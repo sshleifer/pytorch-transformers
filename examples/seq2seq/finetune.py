@@ -36,6 +36,7 @@ try:
         save_json,
         use_task_specific_params,
     )
+    from .loss_dropper import LossDropper
 except ImportError:
     from callbacks import Seq2SeqLoggingCallback, get_checkpoint_callback, get_early_stopping_callback
     from utils import (
@@ -55,19 +56,21 @@ except ImportError:
         save_json,
         use_task_specific_params,
     )
+    from loss_dropper import LossDropper
 
 logger = logging.getLogger(__name__)
 
 
 class SummarizationModule(BaseTransformer):
     mode = "summarization"
-    loss_names = ["loss"]
+    loss_names = ["loss", "dropper_mask_mean"]
     metric_names = ROUGE_KEYS
     val_metric = "rouge2"
 
     def __init__(self, hparams, **kwargs):
         super().__init__(hparams, num_labels=None, mode=self.mode, **kwargs)
         use_task_specific_params(self.model, "summarization")
+        self.dropper = LossDropper(dropc=hparams.loss_dropper)
         save_git_info(self.hparams.output_dir)
         self.metrics_save_path = Path(self.output_dir) / "metrics.json"
         self.hparams_save_path = Path(self.output_dir) / "hparams.pkl"
@@ -143,34 +146,30 @@ class SummarizationModule(BaseTransformer):
     def _step(self, batch: dict) -> Tuple:
         pad_token_id = self.tokenizer.pad_token_id
         source_ids, source_mask = batch["input_ids"], batch["attention_mask"]  # , batch["decoder_input_ids"]
+        lm_labels = batch["labels"]
 
-        if "labels" in batch:
-            lm_labels = batch["labels"]
-            decoder_input_ids = shift_tokens_right(lm_labels, pad_token_id)
-        elif isinstance(self.model, T5ForConditionalGeneration):
-            lm_labels = batch["decoder_input_ids"]
+        if isinstance(self.model, T5ForConditionalGeneration):
             decoder_input_ids = self.model._shift_right(lm_labels)
         else:
-            raise ValueError()
+            decoder_input_ids = shift_tokens_right(lm_labels, pad_token_id)
 
         outputs = self(source_ids, attention_mask=source_mask, decoder_input_ids=decoder_input_ids, use_cache=False)
+        bs = source_ids.shape[0]
         if not self.already_saved_batch:
             batch["passed_labels"] = lm_labels
             batch["passed_decoder_input_ids"] = decoder_input_ids
             self.save_readable_batch(batch)
 
-        if self.hparams.label_smoothing == 0:
-            # Same behavior as modeling_bart.py, besides pad_token_id
-            loss_fct = torch.nn.CrossEntropyLoss(ignore_index=pad_token_id)
-            lm_logits = outputs[0]
-            assert lm_logits.shape[-1] == self.model.config.vocab_size
-            loss = loss_fct(lm_logits.view(-1, lm_logits.shape[-1]), lm_labels.view(-1))
-        else:
-            lprobs = torch.nn.functional.log_softmax(outputs[0], dim=-1)
-            loss, _ = label_smoothed_nll_loss(
-                lprobs, lm_labels, self.hparams.label_smoothing, ignore_index=pad_token_id
-            )
-        return (loss,)
+        loss_fct = torch.nn.CrossEntropyLoss(reduction='none', ignore_index=pad_token_id)
+        lm_logits = outputs[0]
+        assert lm_logits.shape[-1] == self.model.config.vocab_size
+        loss = loss_fct(lm_logits.view(-1, lm_logits.shape[-1]), lm_labels.view(-1))
+        loss = loss.view(-1, bs)
+        loss = loss.mean(dim=0)
+        mask = self.dropper(loss)
+        loss *= mask
+        loss = loss.mean()
+        return (loss, 1-mask.mean())
 
     @property
     def pad(self) -> int:
