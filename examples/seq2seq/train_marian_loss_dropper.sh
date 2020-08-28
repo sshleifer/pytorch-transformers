@@ -6,7 +6,7 @@ m=Helsinki-NLP/opus-mt-en-ro
 export MAX_LEN=128
 python finetune.py \
   --learning_rate=3e-4 \
-  --loss_dropper 0.3 \
+  --loss_dropper_dropc 0.3 \
   --do_train \
   --fp16 \
   --val_check_interval 0.25 \

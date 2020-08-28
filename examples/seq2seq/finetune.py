@@ -70,7 +70,7 @@ class SummarizationModule(BaseTransformer):
     def __init__(self, hparams, **kwargs):
         super().__init__(hparams, num_labels=None, mode=self.mode, **kwargs)
         use_task_specific_params(self.model, "summarization")
-        self.dropper = LossDropper(dropc=hparams.loss_dropper)
+        self.dropper = LossDropper(dropc=hparams.loss_dropper_dropc)
         save_git_info(self.hparams.output_dir)
         self.metrics_save_path = Path(self.output_dir) / "metrics.json"
         self.hparams_save_path = Path(self.output_dir) / "hparams.pkl"
@@ -314,6 +314,7 @@ class SummarizationModule(BaseTransformer):
             "--task", type=str, default="summarization", required=False, help="# examples. -1 means use all."
         )
         parser.add_argument("--label_smoothing", type=float, default=0.0, required=False)
+        parser.add_argument("--loss_dropper_dropc", type=float, default=0.0, required=False)
         parser.add_argument("--src_lang", type=str, default="", required=False)
         parser.add_argument("--tgt_lang", type=str, default="", required=False)
         parser.add_argument(
