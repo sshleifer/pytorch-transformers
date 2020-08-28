@@ -101,7 +101,7 @@ class SummarizationModule(BaseTransformer):
             freeze_params(self.model.get_encoder())
             assert_all_frozen(self.model.get_encoder())
 
-        self.hparams.git_sha = get_git_info()["repo_sha"]
+        #self.hparams.git_sha = get_git_info()["repo_sha"]
         self.num_workers = hparams.num_workers
         self.decoder_start_token_id = None
         if self.model.config.decoder_start_token_id is None and isinstance(self.tokenizer, MBartTokenizer):
@@ -406,5 +406,5 @@ if __name__ == "__main__":
     parser = SummarizationModule.add_model_specific_args(parser, os.getcwd())
 
     args = parser.parse_args()
-
+    #pickle_save(args, 'last_cl_args.pkl')
     main(args)
