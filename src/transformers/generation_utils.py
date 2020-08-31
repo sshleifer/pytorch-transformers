@@ -137,6 +137,7 @@ class GenerationMixin:
         attention_mask: Optional[torch.LongTensor] = None,
         decoder_start_token_id: Optional[int] = None,
         use_cache: Optional[bool] = None,
+        force_bos=False,
         **model_specific_kwargs
     ) -> torch.LongTensor:
         r"""
@@ -474,6 +475,7 @@ class GenerationMixin:
                 encoder_outputs=encoder_outputs,
                 attention_mask=attention_mask,
                 use_cache=use_cache,
+                force_bos=force_bos,
                 model_specific_kwargs=model_specific_kwargs,
             )
         else:
@@ -624,6 +626,7 @@ class GenerationMixin:
         encoder_outputs,
         attention_mask,
         use_cache,
+        force_bos,
         model_specific_kwargs,
     ):
         """Generate sequences for each example with beam search."""
@@ -661,7 +664,7 @@ class GenerationMixin:
             if self.config.is_encoder_decoder and do_sample is False:
                 # TODO (PVP) still a bit hacky here - there might be a better solution
                 next_token_logits = self.adjust_logits_during_generation(
-                    next_token_logits, cur_len=cur_len, max_length=max_length
+                    next_token_logits, cur_len=cur_len, max_length=max_length, force_bos=force_bos,
                 )
 
             scores = F.log_softmax(next_token_logits, dim=-1)  # (batch_size * num_beams, vocab_size)
