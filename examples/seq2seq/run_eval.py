@@ -89,6 +89,7 @@ def run_generate():
     parser.add_argument("--device", type=str, required=False, default=DEFAULT_DEVICE, help="cuda, cuda:1, cpu etc.")
     parser.add_argument("--task", type=str, default="summarization", help="typically translation or summarization")
     parser.add_argument("--bs", type=int, default=8, required=False, help="batch size")
+    parser.add_argument("--force_bos", action='store_true')
     parser.add_argument(
         "--decoder_start_token_id",
         type=int,
@@ -116,6 +117,7 @@ def run_generate():
         fp16=args.fp16,
         task=args.task,
         decoder_start_token_id=args.decoder_start_token_id,
+        force_bos=args.force_bos,
     )
     if args.reference_path is None:
         return
