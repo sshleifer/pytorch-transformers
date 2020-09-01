@@ -55,11 +55,13 @@ def generate_summaries_or_translations(
     for examples_chunk in tqdm(list(chunks(examples, batch_size))):
         if "t5" in model_name:
             examples_chunk = [model.config.prefix + text for text in examples_chunk]
-        batch = tokenizer(examples_chunk, return_tensors="pt", truncation=True, padding="longest").to(device)
+        batch = tokenizer(examples_chunk, return_tensors="pt", truncation=True, padding="longest", max_length=128).to(device)
+        print(batch.input_ids.shape)
         summaries = model.generate(
             input_ids=batch.input_ids,
             attention_mask=batch.attention_mask,
             decoder_start_token_id=decoder_start_token_id,
+            max_length=128,
             **generate_kwargs,
         )
         dec = tokenizer.batch_decode(summaries, skip_special_tokens=True, clean_up_tokenization_spaces=False)
