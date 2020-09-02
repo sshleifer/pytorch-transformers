@@ -207,7 +207,7 @@ def run_generate():
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     logger.info(f"Inferred tokenizer type: {tokenizer.__class__}")  # if this is wrong, check config.model_type.
 
-    ds = Seq2SeqDataset(tokenizer, args.data_dir, type_path=args.type_path, max_target_length=1024, prefix='',
+    ds = Seq2SeqDataset(tokenizer, args.data_dir, tokenizer.model_max_length, 1024, type_path=args.type_path, prefix='',
                         n_obs=args.n_obs)
 
     def run_func(rank, args):
