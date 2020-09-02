@@ -48,6 +48,10 @@ def demo_basic(rank, world_size):
     optimizer.step()
 
     cleanup()
+try:
+    from .utils import Seq2SeqDataset
+except ImportError:
+    from utils import Seq2SeqDataset
 
 
 import torch.multiprocessing as mp
