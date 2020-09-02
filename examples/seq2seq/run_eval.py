@@ -209,13 +209,16 @@ def run_generate():
 
     ds = Seq2SeqDataset(tokenizer, args.data_dir, tokenizer.model_max_length, 1024, type_path=args.type_path, prefix='',
                         n_obs=args.n_obs)
-
+    world_size = args.gpus
+    args.ds = ds
     def run_func(rank, args):
-        return generate_ddp(rank, ds, args.save_path, args.model_name, batch_size=args.bs, fp16=args.fp16,
-                            task=args.task, decoder_start_token_id=args.decoder_start_token_id, n_obs=args.n_ods )
+        return generate_ddp(rank, args.ds, args.save_path, args.model_name, batch_size=args.bs, fp16=args.fp16,
+                            task=args.task, decoder_start_token_id=args.decoder_start_token_id, n_obs=args.n_od,
+                            world_size=args.gpus,
+                            )
 
 
-    args.world_size = args.gpus * args.nodes
+
     os.environ['MASTER_ADDR'] = '10.57.23.164'
     os.environ['MASTER_PORT'] = '8888'
     mp.spawn(run_func, nprocs=args.gpus, args=(args,))
