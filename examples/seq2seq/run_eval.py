@@ -201,8 +201,8 @@ def run_generate():
     #if args.n_obs > 0:
         #examples = examples[: args.n_obs]
     Path(args.save_path).parent.mkdir(exist_ok=True)
-    if args.reference_path is None and Path(args.score_path).exists():
-        warnings.warn(f"score_path {args.score_path} will be overwritten unless you type ctrl-c.")
+    #if args.reference_path is None and Path(args.score_path).exists():
+    #warnings.warn(f"score_path {args.score_path} will be overwritten unless you type ctrl-c.")
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     logger.info(f"Inferred tokenizer type: {tokenizer.__class__}")  # if this is wrong, check config.model_type.
