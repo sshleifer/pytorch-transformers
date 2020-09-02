@@ -166,6 +166,11 @@ def generate_ddp(
     n_obs = len(ds)
     return dict(n_obs=n_obs, runtime=runtime, seconds_per_sample=round(runtime / n_obs, 4), rank=rank)
 
+def run_func(rank, args):
+    return generate_ddp(rank, args.ds, args.save_path, args.model_name, batch_size=args.bs, fp16=args.fp16,
+                        task=args.task, decoder_start_token_id=args.decoder_start_token_id, n_obs=args.n_od,
+                        world_size=args.gpus,
+                        )
 
 def run_generate():
     parser = argparse.ArgumentParser()
@@ -211,11 +216,6 @@ def run_generate():
                         n_obs=args.n_obs)
     world_size = args.gpus
     args.ds = ds
-    def run_func(rank, args):
-        return generate_ddp(rank, args.ds, args.save_path, args.model_name, batch_size=args.bs, fp16=args.fp16,
-                            task=args.task, decoder_start_token_id=args.decoder_start_token_id, n_obs=args.n_od,
-                            world_size=args.gpus,
-                            )
 
 
 
