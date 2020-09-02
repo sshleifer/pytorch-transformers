@@ -168,7 +168,7 @@ def generate_ddp(
 
 def run_func(rank, args):
     return generate_ddp(rank, args.ds, args.save_path, args.model_name, batch_size=args.bs, fp16=args.fp16,
-                        task=args.task, decoder_start_token_id=args.decoder_start_token_id, n_obs=args.n_od,
+                        task=args.task, decoder_start_token_id=args.decoder_start_token_id, n_obs=args.n_obs,
                         world_size=args.gpus,
                         )
 
