@@ -166,14 +166,16 @@ class TestSummarizationDistiller(unittest.TestCase):
 
         ckpts = list(Path(model.output_dir).glob("*.ckpt"))
         self.assertEqual(1, len(ckpts))
-        transformer_ckpts = list(Path(model.output_dir).glob("**/*.bin"))
-        self.assertEqual(len(transformer_ckpts), 2)
+        transformer_ckpts = list(Path(model.output_dir).glob("best_tfmr/*.bin"))
+        self.assertEqual(len(transformer_ckpts), 1)
         examples = lmap(str.strip, model.hparams.data_dir.joinpath("test.source").open().readlines())
         out_path = tempfile.mktemp()
         generate_summaries_or_translations(examples, out_path, str(model.output_dir / "best_tfmr"))
         self.assertTrue(Path(out_path).exists())
+        conv
+        #evaluate_checkpoint(transformer_ckpts[0],
 
-        evaluate_checkpoint(ckpts[0], dest_dir=Path(tempfile.mkdtemp()))
+        #evaluate_checkpoint(ckpts[0], dest_dir=Path(tempfile.mkdtemp()))
 
     def test_loss_fn(self):
         model = AutoModelForSeq2SeqLM.from_pretrained(BART_TINY, return_dict=True)

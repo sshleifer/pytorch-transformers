@@ -448,6 +448,7 @@ def evaluate_checkpoint(ckpt_path: Path, dest_dir=None):
     args.eval_batch_size = 16
     Path(args.output_dir).mkdir(exist_ok=True)
     model = create_module(args)
+    return model
     trainer: pl.Trainer = generic_train(model, args, early_stopping_callback=False)
     trainer.test(model)
 

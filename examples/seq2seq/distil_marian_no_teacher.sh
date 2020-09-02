@@ -2,7 +2,7 @@
 export PYTHONPATH="../":"${PYTHONPATH}"
 export WANDB_PROJECT=dmar
 python distillation.py \
-  --learning_rate=3e-4 \
+  --learning_rate=6e-4 \
   --do_train \
   --do_predict \
   --fp16 --no_teacher \
