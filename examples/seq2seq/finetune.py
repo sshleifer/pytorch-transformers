@@ -148,10 +148,11 @@ class SummarizationModule(BaseTransformer):
         lm_logits = outputs[0]
         dec_hidden, enc_outputs, enc_hidden_state =outputs[1:]
         decoder_attn_mask = decoder_input_ids.ne(pad_token_id).unsqueeze(0).unsqueeze(-1)
-        dec_magnitude = (torch.stack(dec_hidden) * decoder_attn_mask).sum() / decoder_attn_mask.sum()
-        dec_wd_loss = torch.sqrt(dec_magnitude).mean()
-        enc_wd_loss = torch.sqrt(torch.stack(enc_hidden_state) * batch['attention_mask'].unsqueeze(0).unsqueeze(-1)).sum()/ batch['attention_mask'].sum()
-        
+        dec_magnitude = (torch.stack(dec_hidden) * decoder_attn_mask).abs().sum()
+        dec_wd_loss = dec_magnitude / decoder_attn_mask.sum()
+        enc_magnitude = (torch.stack(enc_hidden_state) * batch['attention_mask'].unsqueeze(0).unsqueeze(-1)).abs().sum()
+        enc_wd_loss = enc_magnitude / batch['attention_mask'].sum()
+
         if self.hparams.label_smoothing == 0:
             # Same behavior as modeling_bart.py, besides ignoring pad_token_id
             loss_fct = torch.nn.CrossEntropyLoss(ignore_index=pad_token_id)
@@ -165,6 +166,7 @@ class SummarizationModule(BaseTransformer):
             )
         loss2 = loss + self.hparams.wd_alpha * enc_wd_loss + self.hparams.wd_alpha * dec_wd_loss
         return (loss2, loss, enc_wd_loss, dec_wd_loss)
+    
     def calc_weight_decay_loss(self, hidden_states):
         return
 
