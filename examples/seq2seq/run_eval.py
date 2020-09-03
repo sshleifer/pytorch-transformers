@@ -26,6 +26,19 @@ def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
+import os
+
+def print_size_of_model(model):
+    torch.save(model.state_dict(), "temp.p")
+    return 'Size (MB):{:.2f}'.format(os.path.getsize("temp.p")/1e6)
+
+def quantize_model(model):
+    f'Before: {print_size_of_model()}'
+    quantized_model = torch.quantization.quantize_dynamic(
+        model, {torch.nn.Linear}, dtype=torch.qint8
+    )
+    f'After: {print_size_of_model()}'
+    return quantized_model
 
 
 def generate_summaries_or_translations(
@@ -37,6 +50,7 @@ def generate_summaries_or_translations(
     fp16=False,
     task="summarization",
     decoder_start_token_id=None,
+    quantize=False,
     **generate_kwargs,
 ) -> Dict:
     """Save model.generate results to <out_file>, and return how long it took."""
@@ -44,7 +58,10 @@ def generate_summaries_or_translations(
     model_name = str(model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(device)
     if fp16:
+        assert not quantize
         model = model.half()
+    elif quantize:
+        model = quantize_model(model)
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     logger.info(f"Inferred tokenizer type: {tokenizer.__class__}")  # if this is wrong, check config.model_type.
@@ -100,6 +117,7 @@ def run_generate():
         "--n_obs", type=int, default=-1, required=False, help="How many observations. Defaults to all."
     )
     parser.add_argument("--fp16", action="store_true")
+    parser.add_argument("--quantize", action="store_true")
     args = parser.parse_args()
     examples = [" " + x.rstrip() if "t5" in args.model_name else x.rstrip() for x in open(args.input_path).readlines()]
     if args.n_obs > 0:
@@ -116,6 +134,7 @@ def run_generate():
         fp16=args.fp16,
         task=args.task,
         decoder_start_token_id=args.decoder_start_token_id,
+        quantize=args.quantize,
     )
     if args.reference_path is None:
         return
