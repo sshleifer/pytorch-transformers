@@ -15,9 +15,9 @@ from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 logger = getLogger(__name__)
 
 try:
-    from .utils import calculate_bleu, calculate_rouge, use_task_specific_params, Seq2SeqDataset
+    from .utils import calculate_bleu, calculate_rouge, use_task_specific_params
 except ImportError:
-    from utils import calculate_bleu, calculate_rouge, use_task_specific_params, Seq2SeqDataset
+    from utils import calculate_bleu, calculate_rouge, use_task_specific_params
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -26,7 +26,6 @@ def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
-
 
 
 def generate_summaries_or_translations(
@@ -72,113 +71,14 @@ def generate_summaries_or_translations(
     n_obs = len(examples)
     return dict(n_obs=n_obs, runtime=runtime, seconds_per_sample=round(runtime / n_obs, 4))
 
-import os
-import torch
-from transformers import BertForPreTraining
-
-import os
-import tempfile
-import torch
-import torch.distributed as dist
-import torch.nn as nn
-import torch.optim as optim
-import torch.multiprocessing as mp
-
-from torch.nn.parallel import DistributedDataParallel as DDP
-from transformers import AutoModelForSeq2SeqLM
-
-
-def generate_ddp(
-    rank,
-    ds,
-    out_file: str,
-    model_name: str,
-    batch_size: int = 8,
-    device: str = DEFAULT_DEVICE,
-    fp16=False,
-    task="summarization",
-    decoder_start_token_id=None,
-    world_size=2,
-    type_path='val',
-    n_obs=None,
-    **generate_kwargs,
-) -> Dict:
-    """Save model.generate results to <out_file>, and return how long it took."""
-    dist.init_process_group(backend='nccl', init_method='env://', world_size=world_size, rank=rank)
-    torch.cuda.set_device(rank)
-
-    model_name = str(model_name)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-    use_task_specific_params(model, task)
-    if fp16:
-        model = model.half()
-    model.cuda(rank)
-    model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank])
-
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    logger.info(f"Inferred tokenizer type: {tokenizer.__class__}")  # if this is wrong, check config.model_type.
-
-    train_sampler = torch.utils.data.distributed.DistributedSampler(ds,
-                                                                    num_replicas=world_size,
-                                                                    rank=rank)
-
-    train_loader = torch.utils.data.DataLoader(dataset=ds,
-                                               batch_size=batch_size,
-                                               shuffle=False,
-                                               num_workers=0,
-                                               pin_memory=True,
-                                               sampler=train_sampler,
-                                               collate_fn=ds.collate_fn)
-
-
-
-
-
-    start_time = time.time()
-    # update config with task specific params
-    ref = []
-    gt = []
-
-    for batch in train_loader:
-        batch.to(f'cuda:{rank}')
-        summaries = model.generate(
-            input_ids=batch.input_ids,
-            attention_mask=batch.attention_mask,
-            decoder_start_token_id=decoder_start_token_id,
-            **generate_kwargs,
-        )
-        dec = tokenizer.batch_decode(summaries, skip_special_tokens=True, clean_up_tokenization_spaces=False)
-        dec_labels = tokenizer.batch_decode(batch.labels, skip_special_tokens=True, clean_up_tokenization_spaces=False)
-        ref.extend(dec)
-        gt.extend(dec_labels)
-
-    fout = Path(f'{out_file}_{rank}.txt').open("w", encoding="utf-8")
-    for hypothesis in ref:
-        fout.write(hypothesis + "\n")
-    fout.close()
-
-    f_label_out = Path(f'{out_file}_{rank}_labels.txt').open("w", encoding="utf-8")
-    for l in gt:
-        f_label_out.write(l)
-    f_label_out.close()
-
-    runtime = int(time.time() - start_time)  # seconds
-    n_obs = len(ds)
-    return dict(n_obs=n_obs, runtime=runtime, seconds_per_sample=round(runtime / n_obs, 4), rank=rank)
-
-def run_func(rank, args):
-    return generate_ddp(rank, args.ds, args.save_path, args.model_name, batch_size=args.bs, fp16=args.fp16,
-                        task=args.task, decoder_start_token_id=args.decoder_start_token_id, n_obs=args.n_obs,
-                        world_size=args.gpus,
-                        )
 
 def run_generate():
     parser = argparse.ArgumentParser()
     parser.add_argument("model_name", type=str, help="like facebook/bart-large-cnn,t5-base, etc.")
-    parser.add_argument("data_dir", type=str, help="like cnn_dm")
+    parser.add_argument("input_path", type=str, help="like cnn_dm/test.source")
     parser.add_argument("save_path", type=str, help="where to save summaries")
-    parser.add_argument("--type_path", type=str, default='val', help='like train/val/test')
-    #parser.add_argument("--reference_path", type=str, required=False, help="like cnn_dm/test_reference_summaries.txt")
+
+    parser.add_argument("--reference_path", type=str, required=False, help="like cnn_dm/test_reference_summaries.txt")
     parser.add_argument(
         "--score_path",
         type=str,
@@ -197,36 +97,26 @@ def run_generate():
         help="Defaults to using config",
     )
     parser.add_argument(
-        "--n_obs", type=int, default=None, required=False, help="How many observations. Defaults to all."
+        "--n_obs", type=int, default=-1, required=False, help="How many observations. Defaults to all."
     )
     parser.add_argument("--fp16", action="store_true")
-    parser.add_argument("--gpus", type=int, default=1)
     args = parser.parse_args()
-    #examples = [" " + x.rstrip() if "t5" in args.model_name else x.rstrip() for x in open(args.input_path).readlines()]
-    #if args.n_obs > 0:
-        #examples = examples[: args.n_obs]
+    examples = [" " + x.rstrip() if "t5" in args.model_name else x.rstrip() for x in open(args.input_path).readlines()]
+    if args.n_obs > 0:
+        examples = examples[: args.n_obs]
     Path(args.save_path).parent.mkdir(exist_ok=True)
-    #if args.reference_path is None and Path(args.score_path).exists():
-    #warnings.warn(f"score_path {args.score_path} will be overwritten unless you type ctrl-c.")
-
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
-    logger.info(f"Inferred tokenizer type: {tokenizer.__class__}")  # if this is wrong, check config.model_type.
-
-    ds = Seq2SeqDataset(tokenizer, args.data_dir, tokenizer.model_max_length, 1024, type_path=args.type_path, prefix='',
-                        n_obs=args.n_obs)
-    world_size = args.gpus
-    args.ds = ds
-
-
-
-    os.environ['MASTER_ADDR'] = '10.57.23.164'
-    os.environ['MASTER_PORT'] = '8888'
-    mp.spawn(run_func, nprocs=args.gpus, args=(args,))
-
-    results = torch.multiprocessing.spawn(run_func, nprocs=args.gpus)
-
-    import ipdb; ipdb.set_trace()
-
+    if args.reference_path is None and Path(args.score_path).exists():
+        warnings.warn(f"score_path {args.score_path} will be overwritten unless you type ctrl-c.")
+    runtime_metrics = generate_summaries_or_translations(
+        examples,
+        args.save_path,
+        args.model_name,
+        batch_size=args.bs,
+        device=args.device,
+        fp16=args.fp16,
+        task=args.task,
+        decoder_start_token_id=args.decoder_start_token_id,
+    )
     if args.reference_path is None:
         return
     # Compute scores
