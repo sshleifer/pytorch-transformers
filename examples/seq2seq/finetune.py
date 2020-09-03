@@ -61,7 +61,7 @@ logger = logging.getLogger(__name__)
 
 class SummarizationModule(BaseTransformer):
     mode = "summarization"
-    loss_names = ["loss"]
+    loss_names = ["loss", "mlm_loss", "enc_wd_loss", "dec_wd_loss"]
     metric_names = ROUGE_KEYS
     default_val_metric = "rouge2"
 
@@ -144,8 +144,13 @@ class SummarizationModule(BaseTransformer):
         else:
             decoder_input_ids = shift_tokens_right(tgt_ids, pad_token_id)
 
-        outputs = self(src_ids, attention_mask=src_mask, decoder_input_ids=decoder_input_ids, use_cache=False)
+        outputs = self(src_ids, attention_mask=src_mask, decoder_input_ids=decoder_input_ids, use_cache=False, output_hidden_states=True)
         lm_logits = outputs[0]
+        dec_hidden, enc_outputs, enc_hidden_state =outputs[1:]
+        dec_wd_loss = torch.sqrt(torch.stack(dec_hidden)).mean()
+        enc_wd_loss = torch.sqrt(torch.stack(enc_hidden_state)).mean()
+
+
         if self.hparams.label_smoothing == 0:
             # Same behavior as modeling_bart.py, besides ignoring pad_token_id
             loss_fct = torch.nn.CrossEntropyLoss(ignore_index=pad_token_id)
@@ -157,7 +162,10 @@ class SummarizationModule(BaseTransformer):
             loss, nll_loss = label_smoothed_nll_loss(
                 lprobs, tgt_ids, self.hparams.label_smoothing, ignore_index=pad_token_id
             )
-        return (loss,)
+        loss2 = loss + self.hparams.wd_alpha * enc_wd_loss + self.hparams.wd_alpha * dec_wd_loss
+        return (loss2, loss, enc_wd_loss, dec_wd_loss)
+    def calc_weight_decay_loss(self, hidden_states):
+        return
 
     @property
     def pad(self) -> int:
@@ -306,6 +314,7 @@ class SummarizationModule(BaseTransformer):
         parser.add_argument("--tgt_lang", type=str, default="", required=False)
         parser.add_argument("--eval_beams", type=int, default=None, required=False)
         parser.add_argument("--val_metric", type=str, default=None, required=False)
+        parser.add_argument("--wd_alpha", type=float, default=0., required=False)
         parser.add_argument(
             "--early_stopping_patience",
             type=int,

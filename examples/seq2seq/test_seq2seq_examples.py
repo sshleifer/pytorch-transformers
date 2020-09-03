@@ -31,6 +31,7 @@ logger = logging.getLogger()
 CUDA_AVAILABLE = torch.cuda.is_available()
 CHEAP_ARGS = {
     "label_smoothing": 0.2,
+    "wd_alpha": 0.1,
     "eval_beams": 1,
     "val_metric": None,
     "adafactor": True,
