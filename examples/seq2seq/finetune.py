@@ -147,10 +147,11 @@ class SummarizationModule(BaseTransformer):
         outputs = self(src_ids, attention_mask=src_mask, decoder_input_ids=decoder_input_ids, use_cache=False, output_hidden_states=True)
         lm_logits = outputs[0]
         dec_hidden, enc_outputs, enc_hidden_state =outputs[1:]
-        dec_wd_loss = torch.sqrt(torch.stack(dec_hidden)).mean()
-        enc_wd_loss = torch.sqrt(torch.stack(enc_hidden_state)).mean()
-
-
+        decoder_attn_mask = decoder_input_ids.ne(pad_token_id).unsqueeze(0).unsqueeze(-1)
+        dec_magnitude = (torch.stack(dec_hidden) * decoder_attn_mask).sum() / decoder_attn_mask.sum()
+        dec_wd_loss = torch.sqrt(dec_magnitude).mean()
+        enc_wd_loss = torch.sqrt(torch.stack(enc_hidden_state) * batch['attention_mask'].unsqueeze(0).unsqueeze(-1)).sum()/ batch['attention_mask'].sum()
+        
         if self.hparams.label_smoothing == 0:
             # Same behavior as modeling_bart.py, besides ignoring pad_token_id
             loss_fct = torch.nn.CrossEntropyLoss(ignore_index=pad_token_id)
