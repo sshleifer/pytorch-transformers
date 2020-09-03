@@ -166,7 +166,7 @@ class SummarizationModule(BaseTransformer):
             )
         loss2 = loss + self.hparams.wd_alpha * enc_wd_loss + self.hparams.wd_alpha * dec_wd_loss
         return (loss2, loss, enc_wd_loss, dec_wd_loss)
-    
+
     def calc_weight_decay_loss(self, hidden_states):
         return
 
@@ -318,6 +318,7 @@ class SummarizationModule(BaseTransformer):
         parser.add_argument("--eval_beams", type=int, default=None, required=False)
         parser.add_argument("--val_metric", type=str, default=None, required=False)
         parser.add_argument("--wd_alpha", type=float, default=0., required=False)
+        parser.add_argument("--save_top_k", type=int, default=1, required=False, help="How many checkpoints to save")
         parser.add_argument(
             "--early_stopping_patience",
             type=int,
@@ -379,7 +380,7 @@ def main(args, model=None) -> SummarizationModule:
         model,
         args,
         logging_callback=Seq2SeqLoggingCallback(),
-        checkpoint_callback=get_checkpoint_callback(args.output_dir, model.val_metric),
+        checkpoint_callback=get_checkpoint_callback(args.output_dir, model.val_metric, args.save_top_k),
         early_stopping_callback=es_callback,
         logger=logger,
         # TODO: early stopping callback seems messed up

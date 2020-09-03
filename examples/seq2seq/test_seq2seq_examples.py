@@ -35,6 +35,7 @@ CHEAP_ARGS = {
     "wd_alpha": 0.1,
     "eval_beams": 1,
     "val_metric": None,
+    "save_top_k": 1,
     "adafactor": True,
     "early_stopping_patience": 2,
     "logger_name": "default",
