@@ -330,7 +330,6 @@ class SummarizationModule(BaseTransformer):
 
 class TranslationModule(SummarizationModule):
     mode = "translation"
-    loss_names = ["loss"]
     metric_names = ["bleu"]
     default_val_metric = "bleu"
 
