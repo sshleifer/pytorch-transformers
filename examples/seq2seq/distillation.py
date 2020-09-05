@@ -266,7 +266,7 @@ class BartSummarizationDistiller(SummarizationModule):
             )
         if self.alpha_attn > 0:
             attn_loss_dec = self.calc_hidden_loss(
-                dec_mask, outputs.decoder_attentions, t_out.decoder_attentions, self.hparams.d_matches
+                torch.ones_like(dec_mask), outputs.decoder_attentions, t_out.decoder_attentions, self.hparams.d_matches
             )
         else:
             attn_loss_dec = zero_tensor()
@@ -301,7 +301,10 @@ class BartSummarizationDistiller(SummarizationModule):
             student_states = F.layer_norm(student_states, student_states.shape[1:])
             teacher_states = F.layer_norm(teacher_states, teacher_states.shape[1:])
         mse = F.mse_loss(student_states, teacher_states, reduction="none")
-        masked_mse = (mse * mask.unsqueeze(0).unsqueeze(-1)).sum() / valid_count
+        if mask is not None:
+            masked_mse = (mse * mask.unsqueeze(0).unsqueeze(-1)).sum() / valid_count
+        else:
+            masked_mse = (mse * mask.unsqueeze(0).unsqueeze(-1)).sum() / valid_count
         return masked_mse
 
 
