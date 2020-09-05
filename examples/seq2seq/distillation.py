@@ -46,7 +46,16 @@ except ImportError:
 class BartSummarizationDistiller(SummarizationModule):
     """Supports Bart, Pegasus and other models that inherit from Bart."""
 
-    loss_names = ["loss", "ce_loss", "mlm_loss", "enc_mse_loss", "hid_loss_enc", "hid_loss_dec"]
+    loss_names = [
+        "loss",
+        "ce_loss",
+        "mlm_loss",
+        "student_ce",
+        "enc_mse_loss",
+        "hid_loss_enc",
+        "hid_loss_dec",
+        "attn_loss_dec",
+    ]
 
     def __init__(self, hparams):
         assert Path(hparams.data_dir).exists()
@@ -62,6 +71,7 @@ class BartSummarizationDistiller(SummarizationModule):
         self.alpha_mlm = hparams.alpha_mlm
         self.alpha_ce = hparams.alpha_ce
         self.alpha_hid = hparams.alpha_hid
+        self.alpha_attn = hparams.alpha_attn
         # self.alpha_cos = hparams.alpha_cos
         self.alpha_encoder_loss = self.hparams.alpha_encoder_loss
         gc.collect()
@@ -175,7 +185,7 @@ class BartSummarizationDistiller(SummarizationModule):
     def _step(self, batch):
         # assert is_frozen(self.teacher)
         output_attentions = self.hparams.alpha_attn > 0
-        #output_hidden_states = self.hparams.alpha_hid > 0
+        # output_hidden_states = self.hparams.alpha_hid > 0
         pad_token_id = self.tokenizer.pad_token_id
         input_ids, src_mask, tgt_ids = batch["input_ids"], batch["attention_mask"], batch["labels"]
         decoder_input_ids = shift_tokens_right(tgt_ids, pad_token_id)
@@ -194,15 +204,17 @@ class BartSummarizationDistiller(SummarizationModule):
         dec_hidden = outputs.decoder_hidden_states
         enc_hidden_state = outputs.encoder_hidden_states
         enc_outputs = outputs.encoder_last_hidden_state
-        enc_attention = outputs.encoder_attentions
-        dec_attention = outputs.decoder_attentions
+        # enc_attention = outputs.encoder_attentions
+        # dec_attention = outputs.decoder_attentions
 
         # Same cross entropy vs. label smoothing logic as finetune.py
         assert lm_logits.shape[-1] == self.model.config.vocab_size
+        loss_fct = torch.nn.CrossEntropyLoss(ignore_index=pad_token_id)
+        student_crossent = loss_fct(lm_logits.view(-1, lm_logits.shape[-1]), tgt_ids.view(-1))
+
         if self.hparams.label_smoothing == 0:
             # Same behavior as modeling_bart.py, besides ignoring pad_token_id
-            loss_fct = torch.nn.CrossEntropyLoss(ignore_index=pad_token_id)
-            student_lm_loss = loss_fct(lm_logits.view(-1, lm_logits.shape[-1]), tgt_ids.view(-1))
+            student_lm_loss = student_crossent
         else:
             lprobs = torch.nn.functional.log_softmax(lm_logits, dim=-1)
             student_lm_loss, _ = label_smoothed_nll_loss(
@@ -216,7 +228,9 @@ class BartSummarizationDistiller(SummarizationModule):
         if self.different_encoder:
             with torch.no_grad():
                 teacher_enc_outputs, teacher_enc_hid, _ = self.teacher.model.encoder(
-                    input_ids, attention_mask=src_mask, output_hidden_states=True,
+                    input_ids,
+                    attention_mask=src_mask,
+                    output_hidden_states=True,
                     output_attentions=False,
                 )
             if self.hparams.alpha_encoder_loss > 0:
@@ -239,23 +253,41 @@ class BartSummarizationDistiller(SummarizationModule):
                 use_cache=False,
                 return_dict=True,
             )
-        #t_logits = t_out.logits
-        #t_dec_hidden = t_out.decoder_hidden_states
-        #import ipdb; ipdb.set_trace()
+        # t_logits = t_out.logits
+        # t_dec_hidden = t_out.decoder_hidden_states
+        # import ipdb; ipdb.set_trace()
         # t_enc_attention = outputs.encoder_attentions
-        #t_dec_attention = t_out.decoder_attentions
+        # t_dec_attention = t_out.decoder_attentions
         dec_mask = decoder_input_ids.ne(pad_token_id)
         loss_ce, s_logits_slct, t_logits_slct = self.calc_ce_loss(dec_mask, lm_logits, t_out.logits)
         if self.alpha_hid > 0:
-            hid_loss_dec = self.calc_hidden_loss(dec_mask, dec_hidden, t_out.decoder_hidden_states, self.hparams.d_matches)
+            hid_loss_dec = self.calc_hidden_loss(
+                dec_mask, dec_hidden, t_out.decoder_hidden_states, self.hparams.d_matches
+            )
+        if self.alpha_attn > 0:
+            attn_loss_dec = self.calc_hidden_loss(
+                dec_mask, outputs.decoder_attentions, t_out.decoder_attentions, self.hparams.d_matches
+            )
+        else:
+            attn_loss_dec = zero_tensor()
 
         blended_loss = (
             self.alpha_ce * loss_ce
             + self.alpha_mlm * student_lm_loss
             + self.hparams.alpha_encoder_loss * loss_encoder
             + self.hparams.alpha_hid * (hid_loss_enc + hid_loss_dec)
+            + self.hparams.alpha_attn * attn_loss_dec
         )
-        return blended_loss, loss_ce, student_lm_loss, loss_encoder, hid_loss_enc, hid_loss_dec
+        return (
+            blended_loss,
+            loss_ce,
+            student_lm_loss,
+            student_crossent,
+            loss_encoder,
+            hid_loss_enc,
+            hid_loss_dec,
+            attn_loss_dec,
+        )
 
     def calc_hidden_loss(self, attention_mask, hidden_states, hidden_states_T, matches):
         msg = "expected list or tuple for hidden_states, got tensor of shape: "
