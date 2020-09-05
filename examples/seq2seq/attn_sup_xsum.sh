@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 export PYTHONPATH="../":"${PYTHONPATH}"
-export BS=24
-export GAS=2
 export WANDB_PROJECT=transformers_fork-examples_summarization_bart
 python distillation.py \
   --learning_rate=3e-4 \
