@@ -34,6 +34,7 @@ CHEAP_ARGS = {
     "supervise_forward": True,
     "alpha_attn": 0.1,
     "normalize_hidden": True,
+    "only_supervise_last_layer": False,
     "label_smoothing": 0.2,
     "eval_beams": 1,
     "val_metric": "loss",
@@ -159,6 +160,32 @@ class TestSummarizationDistiller(unittest.TestCase):
 
     def test_distill_checkpointing_with_teacher(self):
         updates = dict(
+            student_encoder_layers=2,
+            student_decoder_layers=1,
+            max_epochs=4,
+            val_check_interval=0.25,
+            alpha_hid=2.0,
+            model_name_or_path="IGNORE_THIS_IT_DOESNT_GET_USED",
+        )
+        model = self._test_distiller_cli(updates, check_contents=False)
+
+        ckpts = list(Path(model.output_dir).glob("*.ckpt"))
+        self.assertEqual(1, len(ckpts))
+        transformer_ckpts = list(Path(model.output_dir).glob("**/*.bin"))
+        self.assertEqual(len(transformer_ckpts), 2)
+        examples = lmap(str.strip, model.hparams.data_dir.joinpath("test.source").open().readlines())
+        out_path = tempfile.mktemp()
+        generate_summaries_or_translations(examples, out_path, str(model.output_dir / "best_tfmr"))
+        self.assertTrue(Path(out_path).exists())
+
+        evaluate_checkpoint(ckpts[0], dest_dir=Path(tempfile.mkdtemp()))
+        out_path_new = tempfile.mkdtemp()
+        convert_pl_to_hf(ckpts[0], transformer_ckpts[0].parent, out_path_new)
+        assert os.path.exists(os.path.join(out_path_new, "pytorch_model.bin"))
+
+    def test_distill_checkpointing_with_teacher_sup_fwd(self):
+        updates = dict(
+            only_supervise_last_layer=True,
             student_encoder_layers=2,
             student_decoder_layers=1,
             max_epochs=4,

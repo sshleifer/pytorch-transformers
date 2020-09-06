@@ -74,6 +74,7 @@ class BartSummarizationDistiller(SummarizationModule):
         self.alpha_ce = hparams.alpha_ce
         self.alpha_hid = hparams.alpha_hid
         self.alpha_attn = hparams.alpha_attn
+        self.only_supervise_last_layer = hparams.only_supervise_last_layer
         # self.alpha_cos = hparams.alpha_cos
         self.alpha_encoder_loss = self.hparams.alpha_encoder_loss
         gc.collect()
@@ -267,11 +268,17 @@ class BartSummarizationDistiller(SummarizationModule):
         # t_dec_attention = t_out.decoder_attentions
         dec_mask = decoder_input_ids.ne(pad_token_id)
         loss_ce, s_logits_slct, t_logits_slct = self.calc_ce_loss(dec_mask, lm_logits, t_out.logits)
+
+        d_matches = [0] if self.only_supervise_last_layer else self.hparams.d_matches
         if self.alpha_hid > 0:
-            hid_loss_dec = self.calc_hidden_loss(
-                dec_mask, dec_hidden, t_out.decoder_hidden_states, self.hparams.d_matches
-            )
+            if self.only_supervise_last_layer:
+                t_out.decoder_hidden_states = (t_out.decoder_hidden_states[-1],)
+                dec_hidden = (dec_hidden[-1],)
+            hid_loss_dec = self.calc_hidden_loss(dec_mask, dec_hidden, t_out.decoder_hidden_states, d_matches)
         if self.alpha_attn > 0:
+            if self.only_supervise_last_layer:
+                t_out.decoder_attentions = (t_out.decoder_attentions[-1],)
+                outputs.decoder_attentions = (outputs.decoder_attentions[-1],)
             attn_loss_dec = self.calc_attn_loss(
                 outputs.decoder_attentions, t_out.decoder_attentions, self.hparams.d_matches, dec_mask.sum()
             )
@@ -308,13 +315,13 @@ class BartSummarizationDistiller(SummarizationModule):
         mse = F.mse_loss(student_states, teacher_states, reduction="sum") / valid_count
         return mse
 
-    def calc_hidden_loss(self, attention_mask, hidden_states, hidden_states_T, matches):
+    def calc_hidden_loss(self, attention_mask, hidden_states: tuple, hidden_states_T: tuple, matches):
         msg = "expected list or tuple for hidden_states, got tensor of shape: "
         assert not isinstance(hidden_states, torch.Tensor), f"{msg}{hidden_states.shape}"
         assert not isinstance(hidden_states_T, torch.Tensor), f"{msg}{hidden_states_T.shape}"
         mask = attention_mask.to(hidden_states[0])
         valid_count = mask.sum() * hidden_states[0].size(-1)
-        student_states = torch.stack([hidden_states[i] for i in range(len(matches))])
+        student_states = torch.stack(list(hidden_states))
         teacher_states = torch.stack([hidden_states_T[j] for j in matches])
         if self.hparams.normalize_hidden:
             student_states = F.layer_norm(student_states, student_states.shape[1:])
@@ -327,7 +334,7 @@ class BartSummarizationDistiller(SummarizationModule):
         return masked_mse
 
 
-def add_distill_args(parser):
+def add_distill_args(parser: argparse.ArgumentParser):
     parser.add_argument("--teacher", type=str)
     parser.add_argument("--alpha_ce", default=0.8, type=float)
     parser.add_argument("--alpha_mlm", default=0.2, type=float)
@@ -339,6 +346,7 @@ def add_distill_args(parser):
     parser.add_argument("--no_teacher", action="store_true", default=False)
     parser.add_argument("--length_penalty", type=float, default=-1)
     parser.add_argument("--supervise_forward", action="store_true", default=False)
+    parser.add_argument("-sup_ll", "--only_supervise_last_layer", action="store_true", default=False)
     parser.add_argument("--normalize_hidden", action="store_true", default=False)
 
 
