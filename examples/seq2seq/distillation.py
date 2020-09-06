@@ -280,7 +280,7 @@ class BartSummarizationDistiller(SummarizationModule):
                 t_out.decoder_attentions = (t_out.decoder_attentions[-1],)
                 outputs.decoder_attentions = (outputs.decoder_attentions[-1],)
             attn_loss_dec = self.calc_attn_loss(
-                outputs.decoder_attentions, t_out.decoder_attentions, self.hparams.d_matches, dec_mask.sum()
+                outputs.decoder_attentions, t_out.decoder_attentions, d_matches, dec_mask.sum()
             )
         else:
             attn_loss_dec = zero_tensor()
@@ -302,8 +302,7 @@ class BartSummarizationDistiller(SummarizationModule):
             hid_loss_dec,
             attn_loss_dec,
         )
-
-    def calc_attn_loss(self, hidden_states, hidden_states_T, matches, valid_count):
+    def vectorized_calc_attn_loss(self, hidden_states, hidden_states_T, matches, valid_count):
         msg = "expected list or tuple for hidden_states, got tensor of shape: "
         assert not isinstance(hidden_states, torch.Tensor), f"{msg}{hidden_states.shape}"
         assert not isinstance(hidden_states_T, torch.Tensor), f"{msg}{hidden_states_T.shape}"
@@ -315,7 +314,7 @@ class BartSummarizationDistiller(SummarizationModule):
         mse = F.mse_loss(student_states, teacher_states, reduction="sum") / valid_count
         return mse
 
-    def calc_hidden_loss(self, attention_mask, hidden_states: tuple, hidden_states_T: tuple, matches):
+    def vectorized_calc_hidden_loss(self, attention_mask, hidden_states: tuple, hidden_states_T: tuple, matches):
         msg = "expected list or tuple for hidden_states, got tensor of shape: "
         assert not isinstance(hidden_states, torch.Tensor), f"{msg}{hidden_states.shape}"
         assert not isinstance(hidden_states_T, torch.Tensor), f"{msg}{hidden_states_T.shape}"
@@ -333,6 +332,36 @@ class BartSummarizationDistiller(SummarizationModule):
             masked_mse = (mse * mask.unsqueeze(0).unsqueeze(-1)).sum() / valid_count
         return masked_mse
 
+    def calc_attn_loss(self, hidden_states, hidden_states_T, matches, valid_count):
+        msg = "expected list or tuple for hidden_states, got tensor of shape: "
+        assert not isinstance(hidden_states, torch.Tensor), f"{msg}{hidden_states.shape}"
+        assert not isinstance(hidden_states_T, torch.Tensor), f"{msg}{hidden_states_T.shape}"
+        # should this be kl-div?
+        hidden_losses = [
+            F.mse_loss(hidden_states[i], hidden_states_T[j], reduction="sum") / valid_count
+            for i, j in enumerate(matches)
+        ]
+
+        self.metrics['train_hid'].append({f'attn_{i}_mse': score.item() for i, score in enumerate(hidden_losses)})
+        return sum(hidden_losses)
+
+    def calc_hidden_loss(self, attention_mask, hidden_states, hidden_states_T, matches):
+        assert not isinstance(
+            hidden_states, torch.Tensor
+        ), f"expected list or tuple for hidden_states, got tensor of shape {hidden_states.shape}"
+        assert not isinstance(
+            hidden_states_T, torch.Tensor
+        ), f"expected list or tuple for hidden_states_T, got tensor of shape {hidden_states_T.shape}"
+        mask = attention_mask.to(hidden_states[0])
+        valid_count = mask.sum() * hidden_states[0].size(-1)
+        hidden_losses = [
+            (F.mse_loss(hidden_states[i], hidden_states_T[j], reduction="none") * mask.unsqueeze(-1)).sum()
+            / valid_count
+            for i, j in enumerate(matches)
+        ]
+        self.metrics['train_hid'].append({f'hid_{i}_mse': score.item() for i,score in enumerate(hidden_losses)})
+
+        return sum(hidden_losses)
 
 def add_distill_args(parser: argparse.ArgumentParser):
     parser.add_argument("--teacher", type=str)
