@@ -579,6 +579,7 @@ class BartDecoder(nn.Module):
             dropout_probability = random.uniform(0, 1)
             if self.training and (dropout_probability < self.layerdrop):
                 continue
+            is_last_layer = (idx == len(self.layers) - 1)
 
             layer_state = past_key_values[idx] if past_key_values is not None else None
 
@@ -589,15 +590,15 @@ class BartDecoder(nn.Module):
                 decoder_padding_mask=decoder_padding_mask,
                 layer_state=layer_state,
                 causal_mask=decoder_causal_mask,
-                output_attentions=output_attentions,
+                output_attentions=output_attentions and is_last_layer,
             )
 
             if use_cache:
                 next_decoder_cache.append(layer_past.copy())
 
-            if self.layer_norm and (idx == len(self.layers) - 1):  # if config.add_final_layer_norm (mBART)
+            if self.layer_norm and is_last_layer:  # if config.add_final_layer_norm (mBART)
                 x = self.layer_norm(x)
-            if output_attentions:
+            if output_attentions and is_last_layer:
                 all_self_attns += (layer_self_attn,)
 
         # Convert to standard output format: (seq_len, BS, model_dim) -> (BS, seq_len, model_dim)

@@ -276,11 +276,9 @@ class BartSummarizationDistiller(SummarizationModule):
                 dec_hidden = (dec_hidden[-1],)
             hid_loss_dec = self.calc_hidden_loss(dec_mask, dec_hidden, t_out.decoder_hidden_states, d_matches)
         if self.alpha_attn > 0:
-            if self.only_supervise_last_layer:
-                t_out.decoder_attentions = (t_out.decoder_attentions[-1],)
-                outputs.decoder_attentions = (outputs.decoder_attentions[-1],)
+            assert len(t_out.decoder_attentions) == len(outputs.decoder_attentions) == 1
             attn_loss_dec = self.calc_attn_loss(
-                outputs.decoder_attentions, t_out.decoder_attentions, self.hparams.d_matches, dec_mask.sum()
+                outputs.decoder_attentions, t_out.decoder_attentions, [0], dec_mask.sum()
             )
         else:
             attn_loss_dec = zero_tensor()
