@@ -43,6 +43,8 @@ except ImportError:
     )
 
 from transformers.modeling_outputs import Seq2SeqLMOutput
+
+
 class BartSummarizationDistiller(SummarizationModule):
     """Supports Bart, Pegasus and other models that inherit from Bart."""
 
@@ -202,8 +204,8 @@ class BartSummarizationDistiller(SummarizationModule):
             use_cache=False,
             return_dict=True,
         )
-        outputs = Seq2SeqLMOutput(**outputs)
-        assert isinstance(outputs, Seq2SeqLMOutput), f'outputs are of type {type(outputs)}'
+        outputs = Seq2SeqLMOutput(**outputs)  # Why is this needed!
+        assert isinstance(outputs, Seq2SeqLMOutput), f"outputs are of type {type(outputs)}"
 
         lm_logits = outputs.logits
         dec_hidden = outputs.decoder_hidden_states
@@ -270,8 +272,8 @@ class BartSummarizationDistiller(SummarizationModule):
                 dec_mask, dec_hidden, t_out.decoder_hidden_states, self.hparams.d_matches
             )
         if self.alpha_attn > 0:
-            attn_loss_dec = self.calc_hidden_loss(
-                torch.ones_like(dec_mask), outputs.decoder_attentions, t_out.decoder_attentions, self.hparams.d_matches
+            attn_loss_dec = self.calc_attn_loss(
+                outputs.decoder_attentions, t_out.decoder_attentions, self.hparams.d_matches, dec_mask.sum()
             )
         else:
             attn_loss_dec = zero_tensor()
@@ -293,6 +295,18 @@ class BartSummarizationDistiller(SummarizationModule):
             hid_loss_dec,
             attn_loss_dec,
         )
+
+    def calc_attn_loss(self, hidden_states, hidden_states_T, matches, valid_count):
+        msg = "expected list or tuple for hidden_states, got tensor of shape: "
+        assert not isinstance(hidden_states, torch.Tensor), f"{msg}{hidden_states.shape}"
+        assert not isinstance(hidden_states_T, torch.Tensor), f"{msg}{hidden_states_T.shape}"
+        student_states = torch.stack([hidden_states[i] for i in range(len(matches))])
+        teacher_states = torch.stack([hidden_states_T[j] for j in matches])
+        if self.hparams.normalize_hidden:
+            student_states = F.layer_norm(student_states, student_states.shape[1:])
+            teacher_states = F.layer_norm(teacher_states, teacher_states.shape[1:])
+        mse = F.mse_loss(student_states, teacher_states, reduction="sum") / valid_count
+        return mse
 
     def calc_hidden_loss(self, attention_mask, hidden_states, hidden_states_T, matches):
         msg = "expected list or tuple for hidden_states, got tensor of shape: "
