@@ -14,6 +14,6 @@ python -m pdb -c continue distillation.py \
   --model_name_or_path IGNORED \
   --length_penalty=0.5 \
   --train_batch_size=$BS --eval_batch_size=$BS --gradient_accumulation_steps=$GAS  --num_train_epochs=4 \
-  --tokenizer_name facebook/bart-large --supervise_forward \
+  --tokenizer_name facebook/bart-large \
   --warmup_steps 500 --logger_name wandb --sortish_sampler --gpus 1 \
   "$@"
