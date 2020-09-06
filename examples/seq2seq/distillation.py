@@ -182,6 +182,9 @@ class BartSummarizationDistiller(SummarizationModule):
         add_distill_args(parser)
         return parser
 
+    def forward(self, input_ids, **kwargs):
+        return self.model(input_ids, **kwargs)
+
     def _step(self, batch):
         # assert is_frozen(self.teacher)
         output_attentions = self.hparams.alpha_attn > 0
@@ -199,7 +202,8 @@ class BartSummarizationDistiller(SummarizationModule):
             use_cache=False,
             return_dict=True,
         )
-        assert isinstance(outputs, Seq2SeqLMOutput), print(f'outputs are of type {type(outputs)}')
+        outputs = Seq2SeqLMOutput(**outputs)
+        assert isinstance(outputs, Seq2SeqLMOutput), f'outputs are of type {type(outputs)}'
 
         lm_logits = outputs.logits
         dec_hidden = outputs.decoder_hidden_states
