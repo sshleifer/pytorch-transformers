@@ -42,7 +42,7 @@ except ImportError:
         use_task_specific_params,
     )
 
-
+from transformers.modeling_outputs import Seq2SeqLMOutput
 class BartSummarizationDistiller(SummarizationModule):
     """Supports Bart, Pegasus and other models that inherit from Bart."""
 
@@ -199,6 +199,7 @@ class BartSummarizationDistiller(SummarizationModule):
             use_cache=False,
             return_dict=True,
         )
+        assert isinstance(outputs, Seq2SeqLMOutput), print(f'outputs are of type {type(outputs)}')
 
         lm_logits = outputs.logits
         dec_hidden = outputs.decoder_hidden_states
