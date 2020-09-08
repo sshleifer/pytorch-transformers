@@ -132,7 +132,6 @@ def test_opus_mt_distill_script():
     for k, v in env_vars_to_replace.items():
         bash_script = bash_script.replace(k, str(v))
     output_dir = tempfile.mkdtemp(prefix="marian_output")
-    bash_script = bash_script.replace("--fp16", "")
     epochs = 6
     testargs = (
         ["distillation.py"]
