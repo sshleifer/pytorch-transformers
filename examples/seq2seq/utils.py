@@ -138,7 +138,7 @@ class AbstractSeq2SeqDataset(Dataset):
 
         # num_tokens_fn = lambda i: self.src_lens[i] // 4  # assume each token is ~4 characters (a bit conservative)
         batch_sampler: List[List[int]] = batch_by_size(
-            sorted_indices, num_tokens_fn=num_tokens_in_example, max_tokens=max_tokens_per_batch, **kwargs
+            sorted_indices, num_tokens_fn=num_tokens_in_example, max_tokens=max_tokens_per_batch, required_batch_size_multiple=64
         )
         return batch_sampler
 
