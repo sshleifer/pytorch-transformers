@@ -127,7 +127,7 @@ class AbstractSeq2SeqDataset(Dataset):
         # import ipdb; ipdb.set_trace()
         from fairseq.data.data_utils import batch_by_size
 
-        # indices = np.arange(len(self.src_lens))
+        #sorted_indices = np.arange(len(self.src_lens))
         sorted_indices = list(self.make_sortish_sampler(1024))
 
         def num_tokens_in_example(i):
