@@ -14,6 +14,6 @@ python distillation.py \
   --model_name_or_path IGNORED \
   --length_penalty=0.5 \
   --train_batch_size=$BS --eval_batch_size=$BS --gradient_accumulation_steps=$GAS  --num_train_epochs=12 \
-  --tokenizer_name facebook/bart-large \
+  --tokenizer_name facebook/bart-large --fp16_opt_level=O1 \
   --warmup_steps 500 --logger_name wandb --sortish_sampler \
   "$@"
