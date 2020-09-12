@@ -564,6 +564,7 @@ def evaluate_checkpoint(ckpt_path: Path, dest_dir=None):
 LAYERS_TO_COPY = {
     # maps  num layers in student -> which teacher layers to copy.
     # 12: bart, 16: pegasus, 6: marian/Helsinki-NLP
+    3: {1:[0], 2: [0, 1], 3: [0,1,2]},
     12: {
         1: [0],
         2: [0, 6],
@@ -590,6 +591,7 @@ LAYERS_TO_SUPERVISE = {
     16: {1: [15], 4: [4, 9, 12, 15], 8: [1, 3, 5, 7, 9, 11, 13, 15]},
     6: {1: [5], 2: [3, 5], 3: [1, 4, 5], 4: [1, 2, 4, 5]},
     2: {1: [1], 2: [0, 1]},
+    3: {1: [2], 2: [1, 2], 3: [0, 1, 2]},
 }
 
 
