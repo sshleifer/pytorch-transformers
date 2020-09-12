@@ -12,7 +12,7 @@ python distillation.py \
   --freeze_encoder --freeze_embeds \
   --model_name_or_path IGNORED \
   --alpha_hid=3. \
-  --train_batch_size=128 --eval_batch_size=128 \
+  --train_batch_size=32 --eval_batch_size=32 \
   --tokenizer_name Helsinki-NLP/opus-mt-en-ro \
   --warmup_steps 500 --logger_name wandb \
   --fp16_opt_level O1 --task translation --normalize_hidden --num_sanity_val_steps=0 --supervise_forward \
