@@ -14,11 +14,11 @@ from torch.utils.data import DataLoader
 
 
 logger = getLogger(__name__)
-
+from rouge_score import rouge_scorer
 try:
-    from .utils import calculate_bleu, calculate_rouge, load_json, pickle_save
+    from .utils import load_json, pickle_save
 except ImportError:
-    from utils import calculate_bleu, calculate_rouge, load_json, pickle_save
+    from utils import  load_json, pickle_save
 
 
 
@@ -35,18 +35,23 @@ def process_pseudolabels(path, save_dir=None, n_obs=None):
     if n_obs is not None:
         results = results[:n_obs]
     f = save_dir.joinpath('train.target').open("w", encoding="utf-8")
+    METRIC='rougeL'
+    scorer = rouge_scorer.RougeScorer([METRIC], use_stemmer=False)
     rouges = []
     best_preds = []
+    labs = []
     for r in tqdm(results):
         lab, preds = r['label'], r['preds']
-        possible_rouges = list(enumerate([calculate_rouge([p], [lab])['rougeL'] for p in preds]))
+        possible_rouges = list(enumerate([scorer.score(p, lab)[METRIC].fmeasure for p in preds]))
         best_id, best_rouge = sorted(possible_rouges, key=lambda x: -x[1])[0]
         rouges.append(best_rouge)
         best_preds.append(preds[best_id])
+        labs.append(lab)
         f.write(preds[best_id]+'\n')
         f.flush()
     f.close()
     print(f'RougeL: {np.mean(rouges): .2f}')
+    pickle_save(rouges, save_dir.joinpath('train_rouges.pkl'))
 
 
 

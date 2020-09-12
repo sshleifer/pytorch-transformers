@@ -8,6 +8,7 @@ from typing import Dict, List
 
 import torch
 from tqdm import tqdm
+import fire
 
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from torch.utils.data import DataLoader
@@ -17,10 +18,13 @@ logger = getLogger(__name__)
 
 try:
     from .utils import calculate_bleu, calculate_rouge, parse_numeric_cl_kwargs, use_task_specific_params, Seq2SeqDataset, save_json
+    from .process_pseudolabels import process_pseudolabels
 except ImportError:
     from utils import calculate_bleu, calculate_rouge, parse_numeric_cl_kwargs, use_task_specific_params, Seq2SeqDataset, save_json
+    from process_pseudolabels import process_pseudolabels
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
 
 
 def chunks(lst, n):
@@ -71,8 +75,6 @@ def generate_pseudolabels(
         collate_fn=ds.collate_fn
 
     )
-
-    start_time = time.time()
     # update config with task specific params
     i = 0
     results = []
@@ -91,59 +93,10 @@ def generate_pseudolabels(
         chunked_preds = list(chunks(dec, num_return_sequences))
         for i, label in enumerate(labels):
             results.append(dict(preds=chunked_preds[i], label=label))
-
-
-            # best_pred, best_score = '', -1
-            # for j in range(num_return_sequences):
-            #     pred = chunked_preds[i][j]
-            #     score = calculate_rouge([pred], [label])['rougeL']
-            #     if score > best_score:
-            #         best_score = score
-            #         best_pred = pred
-            # results.append(dict(label=label, best_pred=best_pred, best_score=best_score))
         save_json(results, out_file)
 
-    runtime = int(time.time() - start_time)  # seconds
-    return dict(n_obs=n_obs, runtime=runtime, seconds_per_sample=round(runtime / n_obs, 4))
-import fire
+    process_pseudolabels(out_file)
+
 
 if __name__ == '__main__':
     fire.Fire(generate_pseudolabels)
-
-# def run_generate():
-#     # parser = argparse.ArgumentParser()
-#     # parser.add_argument("model_name", type=str, help="like facebook/bart-large-cnn,t5-base, etc.")
-#     # parser.add_argument("input_path", type=str, help="like cnn_dm/test.source")
-#     # parser.add_argument("save_path", type=str, help="where to save summaries")
-#     # parser.add_argument("--reference_path", type=str, required=False, help="like cnn_dm/test.target")
-#     # parser.add_argument("--score_path", type=str, required=False, default="metrics.json", help="where to save metrics")
-#     # parser.add_argument("--device", type=str, required=False, default=DEFAULT_DEVICE, help="cuda, cuda:1, cpu etc.")
-#     # parser.add_argument("--task", type=str, default="summarization", help="used for task_specific_params + metrics")
-#     # parser.add_argument("--bs", type=int, default=8, required=False, help="batch size")
-#     # parser.add_argument(
-#     #     "--n_obs", type=int, default=-1, required=False, help="How many observations. Defaults to all."
-#     # )
-#     # parser.add_argument("--fp16", action="store_true")
-#     # # Unspecified args like --num_beams=2 --decoder_start_token_id=4 are passed to model.generate
-#     # args, rest = parser.parse_known_args()
-#     # parsed = parse_numeric_cl_kwargs(rest)
-#     # if parsed:
-#     #     print(f"parsed the following generate kwargs: {parsed}")
-#     # Path(args.save_path).parent.mkdir(exist_ok=True)
-#     # if args.reference_path is None and Path(args.score_path).exists():
-#     #     warnings.warn(f"score_path {args.score_path} will be overwritten unless you type ctrl-c.")
-#     generate_summaries_or_translations(
-#         args.input_path,
-#         args.save_path,
-#         args.model_name,
-#         batch_size=args.bs,
-#         device=args.device,
-#         fp16=args.fp16,
-#         task=args.task,
-#         **parsed,
-#     )
-#
-#
-# if __name__ == "__main__":
-#     # Usage for MT:
-#     run_generate()
