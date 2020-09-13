@@ -71,7 +71,7 @@ def eval_data_dir(
         summaries = model.generate(
             input_ids=batch["input_ids"].to(model.device),
             attention_mask=batch["attention_mask"].to(model.device),
-            num_beams=num_beams,
+            num_beams=max(num_beams, num_return_sequences),
             num_return_sequences=num_return_sequences,
             **generate_kwargs,
         )
