@@ -15,8 +15,10 @@ logger = getLogger(__name__)
 
 try:
     from .utils import Seq2SeqDataset, parse_numeric_cl_kwargs, save_json, use_task_specific_params
+    from .run_eval import chunks
 except ImportError:
     from utils import Seq2SeqDataset, parse_numeric_cl_kwargs, save_json, use_task_specific_params
+    from run_eval import chunks
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -34,6 +36,7 @@ def eval_data_dir(
     num_beams: int = 4,
     task="summarization",
     local_rank=None,
+    num_return_sequences=1,
     **generate_kwargs,
 ) -> Dict:
     """Run evaluation on part of the data for one gpu and save to {save_dir}/rank_{rank}_output.json"""
@@ -69,10 +72,13 @@ def eval_data_dir(
             input_ids=batch["input_ids"].to(model.device),
             attention_mask=batch["attention_mask"].to(model.device),
             num_beams=num_beams,
+            num_return_sequences=num_return_sequences,
             **generate_kwargs,
         )
         preds = tokenizer.batch_decode(summaries, **dec_kwargs)
         labels = tokenizer.batch_decode(batch["labels"], **dec_kwargs)
+        if num_return_sequences > 1:
+            preds = chunks(preds, num_return_sequences)
         if save_source:
             docs = tokenizer.batch_decode(batch["input_ids"], **dec_kwargs)
         for i in range(len(labels)):
@@ -99,6 +105,7 @@ def run_generate():
     parser.add_argument("--save_dir", type=str, help="where to save", default="tmp_gen")
     parser.add_argument("--prefix", type=str, default="test", help="which subset to evaluate typically train/val/test")
     parser.add_argument("--reference_path", type=str, required=False, help="like cnn_dm/test.target")
+    parser.add_argument("--num_return_sequences", type=int, default=1, required=False, help="like cnn_dm/test.target")
     parser.add_argument("--score_path", type=str, required=False, default="metrics.json", help="where to save metrics")
     parser.add_argument("--task", type=str, default="summarization", help="used for task_specific_params + metrics")
     parser.add_argument("--bs", type=int, default=8, required=False, help="batch size")
@@ -130,6 +137,7 @@ def run_generate():
         local_rank=args.local_rank,
         n_obs=args.n_obs,
         save_source=args.save_source,
+        num_return_sequences=args.num_return_sequences,
         **parsed,
     )
 
