@@ -327,7 +327,7 @@ def get_git_info():
 ROUGE_KEYS = ["rouge1", "rouge2", "rougeL"]
 
 
-def calculate_rouge(output_lns: List[str], reference_lns: List[str], use_stemmer=True) -> Dict:
+def calculate_rouge(output_lns: List[str], reference_lns: List[str], use_stemmer=True, keys=ROUGE_KEYS) -> Dict:
     scorer = rouge_scorer.RougeScorer(ROUGE_KEYS, use_stemmer=use_stemmer)
     aggregator = scoring.BootstrapAggregator()
 
