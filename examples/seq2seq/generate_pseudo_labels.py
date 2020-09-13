@@ -56,7 +56,7 @@ def generate_pseudolabels(
         model = model.half()
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    logger.info(f"Inferred tokenizer type: {tokenizer.__class__}")  # if this is wrong, check config.model_type.
+    print(f"Inferred tokenizer type: {tokenizer.__class__}")  # if this is wrong, check config.model_type.
     use_task_specific_params(model, task)
     ds = Seq2SeqDataset(
         tokenizer,
