@@ -64,7 +64,7 @@ def generate_pseudolabels(
         max_source_length, max_target_length=1024,
         type_path='train',
         n_obs=n_obs,
-        prefix=model.config.prefix,
+        prefix=model.config.prefix or '',
     )
     sampler = ds.make_sortish_sampler(bs)
 
@@ -90,9 +90,10 @@ def generate_pseudolabels(
         )
         dec = tokenizer.batch_decode(summaries, skip_special_tokens=True, clean_up_tokenization_spaces=False)
         labels = tokenizer.batch_decode(batch['labels'], skip_special_tokens=True, clean_up_tokenization_spaces=False)
+        docs = tokenizer.batch_decode(batch['input_ids'], skip_special_tokens=True, clean_up_tokenization_spaces=False)
         chunked_preds = list(chunks(dec, num_return_sequences))
-        for i, label in enumerate(labels):
-            results.append(dict(preds=chunked_preds[i], label=label))
+        for i, (label, doc) in enumerate(zip(labels, docs)):
+            results.append(dict(preds=chunked_preds[i], label=label, src=doc))
         save_json(results, out_file)
 
     process_pseudolabels(out_file)
