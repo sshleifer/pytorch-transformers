@@ -40,16 +40,18 @@ class PegasusXSUMIntegrationTest(AbstractSeq2SeqIntegrationTest):
         assert inputs.input_ids.shape == (2, 421)
         translated_tokens = self.model.generate(**inputs)
         decoded = self.tokenizer.batch_decode(translated_tokens, skip_special_tokens=True)
-        assert self.tgt_text == decoded
 
         if "cuda" not in torch_device:
+            assert self.tgt_text == decoded
             return
         # Demonstrate fp16 issue, Contributions welcome!
         self.model.half()
         translated_tokens_fp16 = self.model.generate(**inputs, max_length=10)
-        decoded = self.tokenizer.batch_decode(translated_tokens_fp16, skip_special_tokens=True)
+        decoded_fp16 = self.tokenizer.batch_decode(translated_tokens_fp16, skip_special_tokens=True)
         bad_fp16_result = ["unk_7unk_7unk_7unk_7unk_7unk_7unk_7", "unk_7unk_7unk_7unk_7unk_7unk_7unk_7"]
-        self.assertListEqual(decoded, bad_fp16_result)
+        print(f'decoded_fp16: {decoded_fp16}')
+        print(f'decoded_fp32: {decoded}')
+        import ipdb; ipdb.set_trace()
 
 class PegasusConfigTests(unittest.TestCase):
     @slow
