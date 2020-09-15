@@ -294,6 +294,12 @@ def downscaled_layernorm(ln_module, x):
     raise ValueError('could not downscale X enough to avoid overflow')
 
 
+def stop_if_bad(x):
+    if torch.isnan(x).any():
+        raise ValueError('hit nan')
+    if torch.isinf(x).any():
+        raise ValueError('hit inf')
+
 class BartEncoder(nn.Module):
     """
     Transformer encoder consisting of *config.encoder_layers* self attention layers. Each layer
