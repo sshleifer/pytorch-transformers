@@ -278,6 +278,12 @@ class EncoderLayer(nn.Module):
         return x, attn_weights
 
 ACTIVATION_THRESH = 10000
+def layer_stats(weight):
+    abs_val = weight.abs()
+    stats = {'absmax': abs_val.max(), 'larger_than_one': (abs_val > 1).float().mean(), 'less_than_zero': (weight < 0).float().mean(),
+            'absmean': abs_val.mean()}
+    return {k: v.item() for k,v in stats.items()}
+
 
 class BartEncoder(nn.Module):
     """
