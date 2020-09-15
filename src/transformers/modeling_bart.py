@@ -350,8 +350,6 @@ class BartEncoder(nn.Module):
         encoder_states = [] if output_hidden_states else None
         all_attentions = () if output_attentions else None
         for encoder_layer in self.layers:
-            if x.abs().max() > ACTIVATION_THRESH:
-                break
             if output_hidden_states:
                 encoder_states.append(x)
             # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
@@ -359,7 +357,10 @@ class BartEncoder(nn.Module):
             if self.training and (dropout_probability < self.layerdrop):  # skip the layer
                 attn = None
             else:
-                x, attn = encoder_layer(x, attention_mask, output_attentions=output_attentions)
+
+                next_x, attn = encoder_layer(x, attention_mask, output_attentions=output_attentions)
+                if not torch.isnan(next_x).any():
+                    x = next_x
 
             if output_attentions:
                 all_attentions = all_attentions + (attn,)
