@@ -51,16 +51,6 @@ class PegasusXSUMIntegrationTest(AbstractSeq2SeqIntegrationTest):
         bad_fp16_result = ["unk_7unk_7unk_7unk_7unk_7unk_7unk_7", "unk_7unk_7unk_7unk_7unk_7unk_7unk_7"]
         self.assertListEqual(decoded, bad_fp16_result)
 
-    def test_forward_overflow(self):
-        assert self.tokenizer.model_max_length == 512
-        inputs = self.tokenizer.prepare_seq2seq_batch(self.src_text, return_tensors="pt", truncation=True, max_length=512, padding=True).to(
-            torch_device
-        )
-        assert inputs.input_ids.shape == (2, 421)
-
-        self.model(inputs.input_ids, attention_mask=inputs.attention_mask)
-
-
 class PegasusConfigTests(unittest.TestCase):
     @slow
     def test_task_specific_params(self):
