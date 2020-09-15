@@ -360,6 +360,7 @@ class BartEncoder(nn.Module):
 
                 next_x, attn = encoder_layer(x, attention_mask, output_attentions=output_attentions)
                 if not torch.isnan(next_x).any():
+                    import ipdb; ipdb.set_trace()
                     x = next_x
 
             if output_attentions:
