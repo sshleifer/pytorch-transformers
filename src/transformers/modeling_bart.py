@@ -381,7 +381,7 @@ class BartEncoder(nn.Module):
             else:
 
                 next_x, attn = encoder_layer(x, attention_mask, output_attentions=output_attentions)
-                if not torch.isnan(next_x).any():
+                if not torch.isnan(next_x).any() or torch.isinf(x).any():
                     x = next_x
 
             if output_attentions:
