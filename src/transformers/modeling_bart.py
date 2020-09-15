@@ -277,6 +277,7 @@ class EncoderLayer(nn.Module):
             x = self.final_layer_norm(x)
         return x, attn_weights
 
+ACTIVATION_THRESH = 10000
 
 class BartEncoder(nn.Module):
     """
@@ -349,6 +350,8 @@ class BartEncoder(nn.Module):
         encoder_states = [] if output_hidden_states else None
         all_attentions = () if output_attentions else None
         for encoder_layer in self.layers:
+            if x.abs().max() > ACTIVATION_THRESH:
+                break
             if output_hidden_states:
                 encoder_states.append(x)
             # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
@@ -592,6 +595,7 @@ class BartDecoder(nn.Module):
                 causal_mask=decoder_causal_mask,
                 output_attentions=output_attentions,
             )
+
 
             if use_cache:
                 next_decoder_cache.append(layer_past.copy())
