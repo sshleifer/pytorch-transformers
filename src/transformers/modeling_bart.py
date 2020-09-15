@@ -622,7 +622,7 @@ class BartDecoder(nn.Module):
                     x = x / 2
                 else:
                     x, layer_self_attn, layer_past = next_x, next_attn, next_past
-                    continue
+                    break
             else:
                 raise ValueError('couldnt scale x enough')
 
