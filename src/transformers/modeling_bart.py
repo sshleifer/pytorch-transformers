@@ -373,8 +373,19 @@ class BartEncoder(nn.Module):
             if output_attentions:
                 all_attentions = all_attentions + (attn,)
 
+        #if torch.isnan(x).any() or torch.isinf(x).any(): # Should be unreachable
+            
         if self.layer_norm:
-            x = self.layer_norm(x)
+            for i in range(16):
+                next_x = self.layer_norm(x)
+                if torch.isnan(next_x).any() or torch.isinf(next_x).any():
+                    x = x/2
+                else:
+                    x = next_x
+                    break
+
+
+
         if output_hidden_states:
             encoder_states.append(x)
             # T x B x C -> B x T x C
