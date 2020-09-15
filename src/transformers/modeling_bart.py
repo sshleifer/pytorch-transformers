@@ -299,6 +299,9 @@ def stop_if_bad(x):
         raise ValueError('hit nan')
     if torch.isinf(x).any():
         raise ValueError('hit inf')
+def is_bad(x):
+    return  (torch.isnan(x).any() or torch.isinf(x).any())
+
 
 class BartEncoder(nn.Module):
     """
@@ -381,7 +384,7 @@ class BartEncoder(nn.Module):
             else:
 
                 next_x, attn = encoder_layer(x, attention_mask, output_attentions=output_attentions)
-                if not torch.isnan(next_x).any() or torch.isinf(next_x).any():
+                if not is_bad(next_x):
                     x = next_x
 
             if output_attentions:
