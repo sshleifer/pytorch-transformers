@@ -175,6 +175,7 @@ class SummarizationModule(BaseTransformer):
         logs = {name: loss for name, loss in zip(self.loss_names, loss_tensors)}
         # tokens per batch
         logs["tpb"] = batch["input_ids"].ne(self.pad).sum() + batch["labels"].ne(self.pad).sum()
+
         return {"loss": loss_tensors[0], "log": logs}
 
     def validation_step(self, batch, batch_idx) -> Dict:
@@ -195,6 +196,8 @@ class SummarizationModule(BaseTransformer):
         losses.update(generative_metrics)
         all_metrics = {f"{prefix}_avg_{k}": x for k, x in losses.items()}
         all_metrics["step_count"] = self.step_count
+        all_metrics['enc_abs_mean'] = np.mean([m.abs().mean().item() for m in self.model.model.encoder.parameters()])
+        all_metrics['dec_abs_mean'] = np.mean([m.abs().mean().item() for m in self.model.model.decoder.parameters()])
         self.save_metrics(all_metrics, prefix)  # writes to self.metrics_save_path
         preds = flatten_list([x["preds"] for x in outputs])
         return {
