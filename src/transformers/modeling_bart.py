@@ -371,6 +371,7 @@ class BartEncoder(nn.Module):
         encoder_states = [] if output_hidden_states else None
         all_attentions = () if output_attentions else None
         for i, encoder_layer in enumerate(self.layers):
+            stop_if_bad(x)
             if output_hidden_states:
                 encoder_states.append(x)
             # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
@@ -382,14 +383,12 @@ class BartEncoder(nn.Module):
                 next_x, attn = encoder_layer(x, attention_mask, output_attentions=output_attentions)
                 if not torch.isnan(next_x).any():
                     x = next_x
-                else:
-                    import ipdb; ipdb.set_trace()
 
             if output_attentions:
                 all_attentions = all_attentions + (attn,)
 
         #if torch.isnan(x).any() or torch.isinf(x).any(): # Should be unreachable
-
+        stop_if_bad(x)
         x = downscaled_layernorm(self.layer_norm, x)
 
 
