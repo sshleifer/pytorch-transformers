@@ -618,6 +618,7 @@ class BartDecoder(nn.Module):
                     output_attentions=output_attentions,
                 )
                 if torch.isnan(next_x).any() or torch.isinf(next_x).any():
+                    import ipdb; ipdb.set_trace()
                     x = x / 2
                 else:
                     x, layer_self_attn, layer_past = next_x, next_attn, next_past
