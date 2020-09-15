@@ -284,6 +284,15 @@ def layer_stats(weight):
             'absmean': abs_val.mean()}
     return {k: v.item() for k,v in stats.items()}
 
+def downscaled_layernorm(ln_module, x):
+    for i in range(16):
+        next_x = ln_module(x)
+        if torch.isnan(next_x).any() or torch.isinf(next_x).any():
+            x = x / 2
+        else:
+            return next_x
+    raise ValueError('could not downscale X enough to avoid overflow')
+
 
 class BartEncoder(nn.Module):
     """
@@ -374,16 +383,8 @@ class BartEncoder(nn.Module):
                 all_attentions = all_attentions + (attn,)
 
         #if torch.isnan(x).any() or torch.isinf(x).any(): # Should be unreachable
-            
-        if self.layer_norm:
-            for i in range(16):
-                next_x = self.layer_norm(x)
-                if torch.isnan(next_x).any() or torch.isinf(next_x).any():
-                    x = x/2
-                else:
-                    x = next_x
-                    break
 
+        x = downscaled_layernorm(self.layer_norm, x)
 
 
         if output_hidden_states:
@@ -606,22 +607,30 @@ class BartDecoder(nn.Module):
 
             layer_state = past_key_values[idx] if past_key_values is not None else None
 
-            x, layer_self_attn, layer_past = decoder_layer(
-                x,
-                encoder_hidden_states,
-                encoder_attn_mask=encoder_padding_mask,
-                decoder_padding_mask=decoder_padding_mask,
-                layer_state=layer_state,
-                causal_mask=decoder_causal_mask,
-                output_attentions=output_attentions,
-            )
+            for i in range(16):
+                next_x, next_attn, next_past = decoder_layer(
+                    x,
+                    encoder_hidden_states,
+                    encoder_attn_mask=encoder_padding_mask,
+                    decoder_padding_mask=decoder_padding_mask,
+                    layer_state=layer_state,
+                    causal_mask=decoder_causal_mask,
+                    output_attentions=output_attentions,
+                )
+                if torch.isnan(next_x).any() or torch.isinf(next_x).any():
+                    x = x / 2
+                else:
+                    x, layer_self_attn, layer_past = next_x, next_attn, next_past
+                    continue
+            else:
+                raise ValueError('couldnt scale x enough')
 
 
             if use_cache:
                 next_decoder_cache.append(layer_past.copy())
 
             if self.layer_norm and (idx == len(self.layers) - 1):  # if config.add_final_layer_norm (mBART)
-                x = self.layer_norm(x)
+                x = downscaled_layernorm(self.layer_norm, x)
             if output_attentions:
                 all_self_attns += (layer_self_attn,)
 
