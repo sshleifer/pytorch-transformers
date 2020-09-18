@@ -31,7 +31,7 @@ class PegasusXSUMIntegrationTest(AbstractSeq2SeqIntegrationTest):
 
     @cached_property
     def model(self):
-        return PegasusForConditionalGeneration.from_pretrained(self.checkpoint_name, layernorm_eps=1e-1).to(torch_device)
+        return PegasusForConditionalGeneration.from_pretrained(self.checkpoint_name).to(torch_device)
 
     @slow
     def test_pegasus_xsum_summary(self):
