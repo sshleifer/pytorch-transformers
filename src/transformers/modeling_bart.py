@@ -386,6 +386,8 @@ class BartEncoder(nn.Module):
                 next_x, attn = encoder_layer(x, attention_mask, output_attentions=output_attentions)
                 if not is_bad(next_x):
                     x = next_x
+                else:
+                    import ipdb; ipdb.set_trace()
 
             if output_attentions:
                 all_attentions = all_attentions + (attn,)

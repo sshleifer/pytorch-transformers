@@ -18,6 +18,8 @@ XSUM_ENTRY_LONGER = """ The London trio are up for best UK act and best album, a
 set_verbosity(ERROR)
 
 
+ANOTHER_DOC_THAT_OVERFLOWS = "A judge in the case of a five-year-old Christian girl who was placed with a Muslim foster family has ruled she should live with her grandmother."
+
 @require_torch
 class PegasusXSUMIntegrationTest(AbstractSeq2SeqIntegrationTest):
     checkpoint_name = "google/pegasus-xsum"
