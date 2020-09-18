@@ -382,21 +382,13 @@ class BartEncoder(nn.Module):
             if self.training and (dropout_probability < self.layerdrop):  # skip the layer
                 attn = None
             else:
-
-                next_x, attn = encoder_layer(x, attention_mask, output_attentions=output_attentions)
-                if not is_bad(next_x):
-                    x = next_x
-                else:
-                    import ipdb; ipdb.set_trace()
+                x, attn = encoder_layer(x, attention_mask, output_attentions=output_attentions)
 
             if output_attentions:
                 all_attentions = all_attentions + (attn,)
 
-        #if torch.isnan(x).any() or torch.isinf(x).any(): # Should be unreachable
-        stop_if_bad(x)
-        x = downscaled_layernorm(self.layer_norm, x)
-
-
+        if self.layer_norm:
+            x = self.layer_norm(x)
         if output_hidden_states:
             encoder_states.append(x)
             # T x B x C -> B x T x C
@@ -617,31 +609,21 @@ class BartDecoder(nn.Module):
 
             layer_state = past_key_values[idx] if past_key_values is not None else None
 
-            for i in range(16):
-                next_x, next_attn, next_past = decoder_layer(
-                    x,
-                    encoder_hidden_states,
-                    encoder_attn_mask=encoder_padding_mask,
-                    decoder_padding_mask=decoder_padding_mask,
-                    layer_state=layer_state,
-                    causal_mask=decoder_causal_mask,
-                    output_attentions=output_attentions,
-                )
-                if torch.isnan(next_x).any() or torch.isinf(next_x).any():
-                    import ipdb; ipdb.set_trace()
-                    x = x / 2
-                else:
-                    x, layer_self_attn, layer_past = next_x, next_attn, next_past
-                    break
-            else:
-                raise ValueError('couldnt scale x enough')
-
+            x, layer_self_attn, layer_past = decoder_layer(
+                x,
+                encoder_hidden_states,
+                encoder_attn_mask=encoder_padding_mask,
+                decoder_padding_mask=decoder_padding_mask,
+                layer_state=layer_state,
+                causal_mask=decoder_causal_mask,
+                output_attentions=output_attentions,
+            )
 
             if use_cache:
                 next_decoder_cache.append(layer_past.copy())
 
             if self.layer_norm and (idx == len(self.layers) - 1):  # if config.add_final_layer_norm (mBART)
-                x = downscaled_layernorm(self.layer_norm, x)
+                x = self.layer_norm(x)
             if output_attentions:
                 all_self_attns += (layer_self_attn,)
 
@@ -1152,6 +1134,9 @@ class BartForConditionalGeneration(PretrainedBartModel):
     def prepare_inputs_for_generation(
         self, decoder_input_ids, past, attention_mask, use_cache, encoder_outputs, **kwargs
     ):
+        if torch.isinf(encoder_outputs.last_hidden_state).any():
+            clip_val = 10000
+            encoder_outputs['last_hidden_state'] = torch.clamp(encoder_outputs['last_hidden_state'], min=-clip_val, max=clip_val)
         return {
             "input_ids": None,  # encoder_outputs is defined. input_ids not needed
             "encoder_outputs": encoder_outputs,
