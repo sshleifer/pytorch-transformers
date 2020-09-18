@@ -19,7 +19,7 @@ import logging
 
 import torch
 
-from transformers import BlenderbotConfig, BlenderbotForConditionalGeneration
+from transformers import BartConfig, BartForConditionalGeneration
 
 
 logging.basicConfig(level=logging.INFO)
@@ -58,7 +58,7 @@ def rename_state_dict_key(k):
 
 
 IGNORE_KEYS = ["START"]
-from transformers import BartConfig, BartForConditionalGeneration
+
 
 @torch.no_grad()
 def convert_parlai_checkpoint(checkpoint_path, pytorch_dump_folder_path, config_json_path):

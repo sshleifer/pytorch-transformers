@@ -14,8 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # LICENSE file in the root directory of this source tree.
-from .configuration_utils import PretrainedConfig
 from .modeling_bart import BartConfig
+
 
 BLENDERBOT_PRETRAINED_CONFIG_ARCHIVE_MAP = {
     "facebook/blenderbot-3B": "https://cdn.huggingface.co/facebook/blenderbot-3B/config.json",

@@ -20,8 +20,8 @@ import torch
 from .configuration_blenderbot import BlenderbotConfig
 from .modeling_bart import BartForConditionalGeneration
 
-BLENDERBOT_PRETRAINED_MODEL_ARCHIVE_LIST = ["facebook/blenderbot-3B", "facebook/blenderbot-90M"]
 
+BLENDERBOT_PRETRAINED_MODEL_ARCHIVE_LIST = ["facebook/blenderbot-3B", "facebook/blenderbot-90M"]
 
 
 class BlenderbotForConditionalGeneration(BartForConditionalGeneration):
