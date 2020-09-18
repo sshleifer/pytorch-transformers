@@ -384,10 +384,10 @@ class BartEncoder(nn.Module):
             else:
                 x, attn = encoder_layer(x, attention_mask, output_attentions=output_attentions)
                 if is_bad(x):
-                    x = torch.clamp(x, min=-65500, max=65500)
+                    x = torch.clamp(x, min=-64500, max=64500)
                 if is_bad(x):
                     print('still bad after clipping')
-                    import ipdb; ipdb.set_trace()
+                    #import ipdb; ipdb.set_trace()
 
             if output_attentions:
                 all_attentions = all_attentions + (attn,)
