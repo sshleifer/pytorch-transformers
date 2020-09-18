@@ -383,6 +383,8 @@ class BartEncoder(nn.Module):
                 attn = None
             else:
                 x, attn = encoder_layer(x, attention_mask, output_attentions=output_attentions)
+                if is_bad(x):
+                    import ipdb; ipdb.set_trace()
 
             if output_attentions:
                 all_attentions = all_attentions + (attn,)
@@ -1138,7 +1140,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
         if torch.isinf(enc_out).any() or torch.isnan(enc_out).any():
             clip_val = 10000
             encoder_outputs['last_hidden_state'] = torch.clamp(encoder_outputs['last_hidden_state'], min=-clip_val, max=clip_val)
-            stop_if_bad(enc_out)
+
         return {
             "input_ids": None,  # encoder_outputs is defined. input_ids not needed
             "encoder_outputs": encoder_outputs,
