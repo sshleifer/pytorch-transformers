@@ -374,7 +374,7 @@ class BartEncoder(nn.Module):
         encoder_states = [] if output_hidden_states else None
         all_attentions = () if output_attentions else None
         for i, encoder_layer in enumerate(self.layers):
-            stop_if_bad(x)
+            # stop_if_bad(x)
             if output_hidden_states:
                 encoder_states.append(x)
             # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
