@@ -407,7 +407,7 @@ class Blenderbot90MIntegrationTests(unittest.TestCase):
                         3.7328e-02,
                     ]
                 ]
-            ]
+            ], device=torch_device,
         )
         decoder_inputs = torch.LongTensor([1]).expand(1, 1).to(torch_device)
         logits = model(input_ids, decoder_input_ids=decoder_inputs)[0]
