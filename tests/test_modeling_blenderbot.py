@@ -248,7 +248,7 @@ class Blenderbot3BIntegrationTests(unittest.TestCase):
 
     @slow
     def test_generation_from_short_input_same_as_parlai_3B(self):
-        model = BlenderbotForConditionalGeneration.from_pretrained("facebook/blenderbot-3B").to(torch_device)
+        model = BlenderbotForConditionalGeneration.from_pretrained("sshleifer/blenderbot-3B").to(torch_device)
         if torch_device == "cuda":
             model = model.half()
         tokenizer = BlenderbotTokenizer.from_pretrained("facebook/blenderbot-3B")
