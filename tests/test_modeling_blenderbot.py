@@ -323,7 +323,7 @@ class Blenderbot90MIntegrationTests(unittest.TestCase):
 
     @cached_property
     def model(self):
-        model = BlenderbotForConditionalGeneration.from_pretrained(self.ckpt)
+        model = BlenderbotForConditionalGeneration.from_pretrained(self.ckpt).to(torch_device)
         if torch_device == "cuda":
             model = model.half()
         return model
