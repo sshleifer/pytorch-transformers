@@ -1134,9 +1134,11 @@ class BartForConditionalGeneration(PretrainedBartModel):
     def prepare_inputs_for_generation(
         self, decoder_input_ids, past, attention_mask, use_cache, encoder_outputs, **kwargs
     ):
-        if torch.isinf(encoder_outputs.last_hidden_state).any():
+        enc_out = encoder_outputs.last_hidden_state
+        if torch.isinf(enc_out).any() or torch.isnan(enc_out).any():
             clip_val = 10000
             encoder_outputs['last_hidden_state'] = torch.clamp(encoder_outputs['last_hidden_state'], min=-clip_val, max=clip_val)
+            stop_if_bad(enc_out)
         return {
             "input_ids": None,  # encoder_outputs is defined. input_ids not needed
             "encoder_outputs": encoder_outputs,
