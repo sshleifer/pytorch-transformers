@@ -55,7 +55,7 @@ class PegasusXSUMIntegrationTest(AbstractSeq2SeqIntegrationTest):
         print(f'decoded_fp32: {decoded}')
         import torch
         encoder_outputs = self.model.model.encoder(**inputs)[0]
-        assert not torch.isnan(encoder_outputs).any().item()
+        #assert not torch.isnan(encoder_outputs).any().item()
         import ipdb; ipdb.set_trace()
 
 class PegasusConfigTests(unittest.TestCase):

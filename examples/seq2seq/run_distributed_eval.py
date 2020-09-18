@@ -77,6 +77,7 @@ def eval_data_dir(
     use_task_specific_params(model, task)  # update config with task specific params
     if max_source_length is None:
         max_source_length = tokenizer.model_max_length
+        print(f'defaulting to max source length = {max_source_length}')
     ds = Seq2SeqDataset(
         tokenizer,
         data_dir,
