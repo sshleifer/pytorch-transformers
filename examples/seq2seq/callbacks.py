@@ -97,16 +97,18 @@ def get_checkpoint_callback(output_dir, metric, save_top_k=1, lower_is_better=Fa
     )
     return checkpoint_callback
 
-from pytorch_lightning.utilities import rank_zero_warn
-class FixedModelCheckpoint(ModelCheckpoint):
 
+from pytorch_lightning.utilities import rank_zero_warn
+
+
+class FixedModelCheckpoint(ModelCheckpoint):
     @rank_zero_only
     def on_validation_end(self, trainer, pl_module):
         # only run on main process
         if trainer.global_rank != 0:
             return
 
-        metrics = pl_module.metrics['val'][-1]
+        metrics = pl_module.metrics["val"][-1]
         epoch = trainer.current_epoch
         if self.save_top_k == 0:
             # no models are saved
@@ -118,7 +120,7 @@ class FixedModelCheckpoint(ModelCheckpoint):
         self.epoch_last_check = epoch
 
         if self.save_last:
-            filepath = os.path.join(self.dirpath, self.prefix + 'last.ckpt')
+            filepath = os.path.join(self.dirpath, self.prefix + "last.ckpt")
             self._save_model(filepath)
 
         filepath = self.format_checkpoint_name(epoch, metrics)
@@ -133,26 +135,25 @@ class FixedModelCheckpoint(ModelCheckpoint):
 
             if not isinstance(current, torch.Tensor):
                 rank_zero_warn(
-                    f'The metric you returned {current} must be a `torch.Tensor` instance, checkpoint not saved'
-                    f' HINT: what is the value of {self.monitor} in validation_epoch_end()?', RuntimeWarning
+                    f"The metric you returned {current} must be a `torch.Tensor` instance, checkpoint not saved"
+                    f" HINT: what is the value of {self.monitor} in validation_epoch_end()?",
+                    RuntimeWarning,
                 )
                 if current is not None:
                     current = torch.tensor(current)
 
             if current is None:
-                rank_zero_warn(
-                    f'Can save best model only with {self.monitor} available, skipping.', RuntimeWarning
-                )
+                rank_zero_warn(f"Can save best model only with {self.monitor} available, skipping.", RuntimeWarning)
             elif self.check_monitor_top_k(current):
                 self._do_check_save(filepath, current, epoch)
             elif self.verbose > 0:
-                print(f'\nEpoch {epoch:05d}: {self.monitor}  was not in top {self.save_top_k}')
+                print(f"\nEpoch {epoch:05d}: {self.monitor}  was not in top {self.save_top_k}")
 
         else:
             if self.verbose > 0:
-                print(f'\nEpoch {epoch:05d}: saving model to {filepath}')
+                print(f"\nEpoch {epoch:05d}: saving model to {filepath}")
 
-            assert trainer.global_rank == 0, 'tried to make a checkpoint from non global_rank=0'
+            assert trainer.global_rank == 0, "tried to make a checkpoint from non global_rank=0"
             self._save_model(filepath)
 
 

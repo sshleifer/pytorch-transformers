@@ -38,6 +38,7 @@ from utils import (
 logger = logging.getLogger(__name__)
 from pytorch_lightning.utilities import rank_zero_only
 
+
 class SummarizationModule(BaseTransformer):
     mode = "summarization"
     loss_names = ["loss"]
@@ -193,15 +194,14 @@ class SummarizationModule(BaseTransformer):
         def get_date_str(seconds=True) -> str:
             """Returns 2019-09-25-10:02:07, for example."""
             if seconds:
-                return time.strftime('%Y-%m-%d-%H:%M:%S')
+                return time.strftime("%Y-%m-%d-%H:%M:%S")
             else:
-                return time.strftime('%Y-%m-%d-%H:%M')
+                return time.strftime("%Y-%m-%d-%H:%M")
 
-        all_metrics['Time'] = get_date_str(seconds=True)
-        #all_metrics['n_obs'] =
+        all_metrics["Time"] = get_date_str(seconds=True)
+        # all_metrics['n_obs'] =
 
-
-        all_metrics['rank'] = getattr(self.train_dataloader(), 'samrank', -1.)
+        all_metrics["rank"] = getattr(self.train_dataloader(), "samrank", -1.0)
 
         self.save_metrics(all_metrics, prefix)  # writes to self.metrics_save_path
         preds = flatten_list([x["preds"] for x in outputs])
