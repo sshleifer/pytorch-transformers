@@ -78,6 +78,7 @@ def eval_data_dir(
     sampler = ds.make_sortish_sampler(bs, distributed=True, add_extra_examples=False, shuffle=True)
     data_loader = DataLoader(ds, sampler=sampler, batch_size=bs, collate_fn=ds.collate_fn)
     results = []
+    start_time = time.time()
     for batch in tqdm(data_loader):
         summaries = model.generate(
             input_ids=batch["input_ids"].to(model.device),
@@ -88,8 +89,9 @@ def eval_data_dir(
         ids = batch["ids"]
         for i, pred in enumerate(preds):
             results.append(dict(pred=pred, id=ids[i].item()))
+    runtime = time.time() - start_time
     save_json(results, save_path)
-    return results, sampler.num_replicas
+    return results, sampler.num_replicas, runtime
 
 
 def run_generate():
@@ -145,7 +147,7 @@ def run_generate():
         # In theory, a node could finish and save before another node hits this. If this happens, we can address later.
 
     Path(args.save_dir).mkdir(exist_ok=True)
-    results, num_replicas = eval_data_dir(
+    results, num_replicas, runtime = eval_data_dir(
         args.data_dir,
         json_save_dir,
         args.model_name,
@@ -176,8 +178,9 @@ def run_generate():
         metric_name = "bleu" if calc_bleu else "rouge"
         metrics: Dict = score_fn(preds, labels)
         metrics["n_obs"] = len(preds)
-        runtime = time.time() - start_time
+
         metrics["seconds_per_sample"] = round(runtime / metrics["n_obs"], 4)
+        metrics['runtime'] = runtime
         metrics["n_gpus"] = num_replicas
         # TODO(@stas00): add whatever metadata to metrics
         metrics_save_path = save_dir.joinpath(f"{args.type_path}_{metric_name}.json")
