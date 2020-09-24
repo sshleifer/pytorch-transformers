@@ -182,6 +182,7 @@ def run_generate():
         metrics["seconds_per_sample"] = round(runtime / metrics["n_obs"], 4)
         metrics['runtime'] = runtime
         metrics["n_gpus"] = num_replicas
+        metrics['model'] = args.model_name
         # TODO(@stas00): add whatever metadata to metrics
         metrics_save_path = save_dir.joinpath(f"{args.type_path}_{metric_name}.json")
         save_json(metrics, metrics_save_path, indent=None)
