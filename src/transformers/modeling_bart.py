@@ -292,7 +292,7 @@ class BartEncoder(nn.Module):
         self.padding_idx = embed_tokens.padding_idx
         self.max_source_positions = config.max_position_embeddings
         self.variant = config.variant
-        self.do_layernorm_embedding_before = (self.variant != "prelayernorm") or (config.model_type=='bart')
+        self.do_layernorm_embedding_before = (self.variant == "bart") or (config.model_type=='mbart')
         self.embed_tokens = embed_tokens
         if config.static_position_embeddings:
             self.embed_positions = SinusoidalPositionalEmbedding(
