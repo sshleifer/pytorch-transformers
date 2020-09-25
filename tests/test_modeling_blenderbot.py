@@ -33,7 +33,7 @@ if is_torch_available():
 
     def _long_tensor(tok_lst):
         return torch.tensor(tok_lst, dtype=torch.long, device=torch_device, requires_grad=False)
-    def freeze_params(model: nn.Module):
+    def freeze_params(model):
         """Set requires_grad=False for each of model.parameters()"""
         for par in model.parameters():
             par.requires_grad = False
