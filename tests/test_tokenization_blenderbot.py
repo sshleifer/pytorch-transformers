@@ -77,7 +77,7 @@ class BlenderbotSmallTokenizerTest(TokenizerTesterMixin, unittest.TestCase):
 class Blenderbot3BTokenizerTests(unittest.TestCase):
     @cached_property
     def tokenizer_3b(self):
-        return BlenderbotTokenizer.from_pretrained("facebook/blenderbot-3B")
+        return BlenderbotTokenizer.from_pretrained("facebook/blenderbot-3B", use_cdn=False)
 
     def test_special_tokens_3B_tok(self):
         tok = self.tokenizer_3b

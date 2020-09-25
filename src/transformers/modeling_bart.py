@@ -560,8 +560,7 @@ class BartDecoder(nn.Module):
                 # if you make this an AssertionError, test_benchmark breaks.
                 warnings.warn("pass decoder_past_key_value_states to use_cache")
             input_ids = input_ids[:, -1:]
-            positions = positions[:, -1:]  # happens after we embed them
-            # assert input_ids.ne(self.padding_idx).any()
+            positions = positions[:, -1:]
 
         x = self.embed_tokens(input_ids) * self.embed_scale
         if self.variant == "xlm":
@@ -609,7 +608,6 @@ class BartDecoder(nn.Module):
         if not self.norm_embed_before:
             x = self.layernorm_embedding(x)
 
-        # Everything below here is book keeping
         if self.layer_norm:  # if config.add_final_layer_norm (mBART)
             x = self.layer_norm(x)
 
@@ -881,7 +879,7 @@ class BartModel(PretrainedBartModel):
     @add_code_sample_docstrings(
         tokenizer_class=_TOKENIZER_FOR_DOC,
         checkpoint="facebook/bart-large",
-        output_type=BaseModelOutputWithPast,
+        output_type=Seq2SeqModelOutput,
         config_class=_CONFIG_FOR_DOC,
     )
     def forward(
