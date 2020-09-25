@@ -131,7 +131,7 @@ class Blenderbot3BIntegrationTests(unittest.TestCase):
 
     @cached_property
     def tokenizer(self):
-        return BlenderbotTokenizer.from_pretrained(self.ckpt)
+        return BlenderbotTokenizer.from_pretrained("sshleifer/bb3b-tok")
 
 
 
