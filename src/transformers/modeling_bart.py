@@ -292,6 +292,7 @@ class BartEncoder(nn.Module):
         self.padding_idx = embed_tokens.padding_idx
         self.max_source_positions = config.max_position_embeddings
         self.variant = config.variant
+        self.do_layernorm_embedding_before = (self.variant != "prelayernorm") or (config.model_type=='bart')
         self.embed_tokens = embed_tokens
         if config.static_position_embeddings:
             self.embed_positions = SinusoidalPositionalEmbedding(
@@ -334,8 +335,8 @@ class BartEncoder(nn.Module):
         inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
         embed_pos = self.embed_positions(input_ids)
         x = inputs_embeds + embed_pos
-        if self.variant != "prelayernorm":
-            x = self.layernorm_embedding(x)
+        if self.do_layernorm_embedding_before:
+            x = self.layernorm_embedding(x)  # mbart
         x = F.dropout(x, p=self.dropout, training=self.training)
 
         # B x T x C -> T x B x C
@@ -356,8 +357,8 @@ class BartEncoder(nn.Module):
             if output_attentions:
                 all_attentions = all_attentions + (attn,)
 
-        if self.variant == "prelayernorm":  # just mbart/bbot. This is nn.Identity for pegasus
-            x = self.layernorm_embedding(x)
+        if not self.do_layernorm_embedding_before:
+            x = self.layernorm_embedding(x) # just blenderbot-3B.
         if self.layer_norm:
             x = self.layer_norm(x)
         if output_hidden_states:
