@@ -27,7 +27,7 @@ from .utils import logging
 logger = logging.get_logger(__name__)
 
 
-def length_normalization(log_probs, length,  alpha, min_len, max_len, out_of_range_penalty=-0.5, start=0.5,):
+def length_normalization(log_probs, length,  alpha, min_len, max_len, out_of_range_penalty=-1e-3, start=5):
     r"""Create length normalization function.
     Combines length penalty from https://arxiv.org/abs/1609.08144,
     and length constraint from https://www.aclweb.org/anthology/W18-2706.pdf.
