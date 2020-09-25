@@ -17,14 +17,15 @@ VOCAB_FILES_NAMES = {
     "merges_file": "merges.txt",
     # "tokenizer_config_file": "tokenizer_config.json",
 }
-
+CKPT_3B = "facebook/blenderbot-3B"
 PRETRAINED_VOCAB_FILES_MAP = {
     "vocab_file": {
-        "facebook/blenderbot-3B": "https://cdn.huggingface.co/facebook/blenderbot-3B/vocab.json",
+        CKPT_3B: "https://cdn.huggingface.co/facebook/blenderbot-3B/vocab.json",
     },
     "merges_file": {
-        "facebook/blenderbot-3B": "https://cdn.huggingface.co/facebook/blenderbot-3B/merges.txt",
+        CKPT_3B: "https://cdn.huggingface.co/facebook/blenderbot-3B/merges.txt",
     },
+    "tokenizer_config_file": {CKPT_3B: "https://cdn.huggingface.co/facebook/blenderbot-3B/tokenizer_config.json"}
 }
 
 logger = logging.getLogger(__name__)

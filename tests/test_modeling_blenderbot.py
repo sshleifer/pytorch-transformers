@@ -32,7 +32,11 @@ if is_torch_available():
     from transformers.tokenization_blenderbot import BlenderbotSmallTokenizer
 
     def _long_tensor(tok_lst):
-        return torch.tensor(tok_lst, dtype=torch.long, device=torch_device)
+        return torch.tensor(tok_lst, dtype=torch.long, device=torch_device, requires_grad=False)
+    def freeze_params(model: nn.Module):
+        """Set requires_grad=False for each of model.parameters()"""
+        for par in model.parameters():
+            par.requires_grad = False
 
 TOK_DECODE_KW = dict(skip_special_tokens=True, clean_up_tokenization_spaces=True)
 FASTER_GEN_KWARGS = dict(num_beams=1, early_stopping=True, min_length=15, max_length=25)
@@ -129,9 +133,13 @@ class Blenderbot3BIntegrationTests(unittest.TestCase):
     @cached_property
     def model(self):
         model = BlenderbotForConditionalGeneration.from_pretrained(self.ckpt).to(torch_device)
+        freeze_params(model)
         if torch_device == "cuda":
             model = model.half()
         return model
+
+
+
 
     @cached_property
     def tokenizer(self):
@@ -142,10 +150,7 @@ class Blenderbot3BIntegrationTests(unittest.TestCase):
     @slow
     def test_generation_from_short_text_3B(self):
 
-        src_text = [
-            "Sam",
-        ]
-
+        src_text = ["Sam"]
         model_inputs = self.tokenizer(src_text, return_tensors="pt").to(torch_device)
         generated_utterances = self.model.generate(**model_inputs,**FASTER_GEN_KWARGS)
         tgt_text = "Sam is a great name. It means 'sun' in Gaelic."
@@ -172,7 +177,7 @@ class Blenderbot3BIntegrationTests(unittest.TestCase):
         generated_ids = self.model.generate(**model_inputs, **FASTER_GEN_KWARGS)[0]
         reply = self.tokenizer.decode(generated_ids, **TOK_DECODE_KW)
 
-        assert "i'm not sure. i just feel like i've been feeling like i have to be in a certain place" == reply
+        assert "I think it's because we are so worried about what people think of us." == reply
 
 
 
