@@ -85,7 +85,7 @@ class Blenderbot3BTokenizerTests(unittest.TestCase):
         encoded = tok([src_text], padding=False, truncation=False)["input_ids"]
         decoded = tok.batch_decode(encoded, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         assert src_text == decoded  # I wish it did!
-        import ipdb; ipdb.set_trace()
+        assert tok.add_prefix_space
 
     def test_3B_tokenization_same_as_parlai(self):
         # TODO(SS): this can run on CPU
