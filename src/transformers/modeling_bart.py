@@ -499,7 +499,7 @@ class BartDecoder(nn.Module):
             [DecoderLayer(config) for _ in range(config.decoder_layers)]
         )  # type: List[DecoderLayer]
         self.layernorm_embedding = LayerNorm(config.d_model) if config.normalize_embedding else nn.Identity()
-        self.do_layernorm_embedding_before = (self.variant != "prelayernorm") or (config.model_type == 'bart')
+        self.do_layernorm_embedding_before = (self.variant != "prelayernorm") or (config.model_type == 'mbart')
         self.layer_norm = LayerNorm(config.d_model) if config.add_final_layer_norm else None
 
     def forward(
