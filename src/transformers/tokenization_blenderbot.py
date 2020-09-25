@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 VOCAB_FILES_NAMES = {
     "vocab_file": "vocab.json",
     "merges_file": "merges.txt",
-    #"tokenizer_config_file": "tokenizer_config.json",
+    # "tokenizer_config_file": "tokenizer_config.json",
 }
 
 PRETRAINED_VOCAB_FILES_MAP = {

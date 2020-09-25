@@ -99,6 +99,7 @@ class Blenderbot3BTokenizerTests(unittest.TestCase):
 
 
 class Shleifer3BTokenizerTests(unittest.TestCase):
+    """These should be deleted once S3 Updates"""
     @cached_property
     def tokenizer(self):
         NEW_TOK_NAME = 'sshleifer/bb3b-tok'
@@ -115,7 +116,7 @@ class Shleifer3BTokenizerTests(unittest.TestCase):
     def test_add_prefix_space(self):
         assert self.tokenizer.add_prefix_space
 
-    def test_3B_tokenization_same_as_parlai(self):
+    def test_new_3B_tokenization_same_as_parlai(self):
         # TODO(SS): this can run on CPU
         tok = self.tokenizer
         self.assertListEqual(tok(["sam"]).input_ids[0], [268, 343, 2])
