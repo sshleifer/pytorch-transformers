@@ -77,15 +77,14 @@ class BlenderbotSmallTokenizerTest(TokenizerTesterMixin, unittest.TestCase):
 class Blenderbot3BTokenizerTests(unittest.TestCase):
     @cached_property
     def tokenizer_3b(self):
-        return BlenderbotTokenizer.from_pretrained("facebook/blenderbot-3B")
+        return BlenderbotTokenizer.from_pretrained("sshleifer/bb3b-tok")
 
     def test_special_tokens_3B_tok(self):
         tok = self.tokenizer_3b
         src_text = " I am a small frog."
         encoded = tok([src_text], padding=False, truncation=False)["input_ids"]
         decoded = tok.batch_decode(encoded, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
-        assert src_text == decoded  # I wish it did!
-        import ipdb; ipdb.set_trace()
+        assert src_text == decoded
 
     def test_3B_tokenization_same_as_parlai(self):
         # TODO(SS): this can run on CPU
