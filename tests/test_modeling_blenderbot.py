@@ -136,7 +136,6 @@ class Blenderbot3BIntegrationTests(unittest.TestCase):
         OLD_TOK_NAME = "facebook/blenderbot-3B"
         return BlenderbotTokenizer.from_pretrained(NEW_TOK_NAME)#DELETEME
 
-    @unittest.skip("This fails.")
     @slow
     def test_generation_from_short_text_3B(self):
 
@@ -171,6 +170,7 @@ class Blenderbot3BIntegrationTests(unittest.TestCase):
 
         assert "I'm not sure, but I do know that social anxiety disorder is a mental disorder." == reply
         # 9/24: __start__ I have social anxiety. I feel like I'm going to throw up and I'm sweating and blushing.__end__
+        # 9/25:  I think it's because we are so worried about what people think of us.
 
 
 
