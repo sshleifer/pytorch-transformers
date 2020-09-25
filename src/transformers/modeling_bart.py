@@ -499,6 +499,7 @@ class BartDecoder(nn.Module):
             [DecoderLayer(config) for _ in range(config.decoder_layers)]
         )  # type: List[DecoderLayer]
         self.layernorm_embedding = LayerNorm(config.d_model) if config.normalize_embedding else nn.Identity()
+        self.do_layernorm_embedding_before = (self.variant != "prelayernorm") or (config.model_type == 'bart')
         self.layer_norm = LayerNorm(config.d_model) if config.add_final_layer_norm else None
 
     def forward(
@@ -566,7 +567,7 @@ class BartDecoder(nn.Module):
         if self.variant == "xlm":
             x = self.layernorm_embedding(x)
         x += positions
-        if self.variant == "bart":
+        if self.do_layernorm_embedding_before:
             x = self.layernorm_embedding(x)
 
         x = F.dropout(x, p=self.dropout, training=self.training)
@@ -607,7 +608,7 @@ class BartDecoder(nn.Module):
             if output_attentions:
                 all_self_attns += (layer_self_attn,)
 
-        if self.variant == "prelayernorm":
+        if not self.do_layernorm_embedding_before:
             x = self.layernorm_embedding(x)
 
         # Everything below here is book keeping
