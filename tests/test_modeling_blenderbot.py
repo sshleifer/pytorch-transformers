@@ -141,29 +141,25 @@ class Blenderbot3BIntegrationTests(unittest.TestCase):
     def test_generation_from_short_text_3B(self):
 
         src_text = [
-            "sam",
+            "Sam",
         ]
 
         model_inputs = self.tokenizer(src_text, return_tensors="pt").to(torch_device)
-        generated_utterances = self.model.generate(**model_inputs)
-        tgt_text = ["Sam is a great name. It means 'sun' in Gaelic."]
+        generated_utterances = self.model.generate(**model_inputs, num_beams=1)
+        tgt_text = "Sam is a great name. It means 'sun' in Gaelic."
 
         generated_txt = self.tokenizer.batch_decode(generated_utterances)
-        self.assertListEqual(tgt_text, generated_txt)
+        assert generated_txt[0] == tgt_text
 
 
     @slow
     def test_generation_from_short_tensor_3B(self):
-
-        # src_text = ["sam",]
-
         input_ids = _long_tensor([[5502, 2]]).to(torch_device)
-        #model_inputs = self.tokenizer(src_text, return_tensors="pt").to(torch_device)
-        generated_utterances = self.model.generate(input_ids, num_beams=1)[0]
-        tgt_text = ["Sam is a great name. It means 'sun' in Gaelic."]
-
+        generated_utterances = self.model.generate(input_ids, num_beams=1)
+        tgt_text = "Sam is a great name. It means 'sun' in Gaelic."
         generated_txt = self.tokenizer.batch_decode(generated_utterances)
-        self.assertListEqual(tgt_text, generated_txt)
+        assert generated_txt[0] == tgt_text
+
 
     @slow
     def test_generation_from_long_input_same_as_parlai_3B(self):
