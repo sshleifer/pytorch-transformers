@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 VOCAB_FILES_NAMES = {
     "vocab_file": "vocab.json",
     "merges_file": "merges.txt",
+    #"tokenizer_config_file": "tokenizer_config.json",
 }
 
 PRETRAINED_VOCAB_FILES_MAP = {
@@ -30,8 +31,11 @@ logger = logging.getLogger(__name__)
 
 
 class BlenderbotTokenizer(RobertaTokenizer):
-
-    vocab_files_names = VOCAB_FILES_NAMES
+    vocab_files_names = {
+        "vocab_file": "vocab.json",
+        "merges_file": "merges.txt",
+        "tokenizer_config_file": "tokenizer_config.json",
+    }
     pretrained_vocab_files_map = PRETRAINED_VOCAB_FILES_MAP
     max_model_input_sizes = {"facebook/blenderbot-3B": 128}
 

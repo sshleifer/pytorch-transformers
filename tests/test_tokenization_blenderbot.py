@@ -74,20 +74,48 @@ class BlenderbotSmallTokenizerTest(TokenizerTesterMixin, unittest.TestCase):
         assert src_text != decoded  # I wish it did!
         assert decoded == "i am a small frog ."
 
+
 class Blenderbot3BTokenizerTests(unittest.TestCase):
     @cached_property
-    def tokenizer_3b(self):
-        return BlenderbotTokenizer.from_pretrained("facebook/blenderbot-3B", use_cdn=False)
+    def tokenizer(self):
+        NEW_TOK_NAME = 'sshleifer/bb3b-tok'
+        OLD_TOK_NAME = "facebook/blenderbot-3B"
+        return BlenderbotTokenizer.from_pretrained(OLD_TOK_NAME, force_download=True)
 
     def test_special_tokens_3B_tok(self):
-        tok = self.tokenizer_3b
+        tok = self.tokenizer
         src_text = " I am a small frog."
         encoded = tok([src_text], padding=False, truncation=False)["input_ids"]
         decoded = tok.batch_decode(encoded, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         assert src_text == decoded  # I wish it did!
-        assert tok.add_prefix_space
+
+    def test_add_prefix_space(self):
+        assert self.tokenizer.add_prefix_space
 
     def test_3B_tokenization_same_as_parlai(self):
         # TODO(SS): this can run on CPU
-        tok = self.tokenizer_3b
+        tok = self.tokenizer
+        self.assertListEqual(tok(["sam"]).input_ids[0], [268, 343, 2])
+
+
+class Shleifer3BTokenizerTests(unittest.TestCase):
+    @cached_property
+    def tokenizer(self):
+        NEW_TOK_NAME = 'sshleifer/bb3b-tok'
+        OLD_TOK_NAME = "facebook/blenderbot-3B"
+        return BlenderbotTokenizer.from_pretrained(NEW_TOK_NAME, force_download=True)
+
+    def test_special_tokens_3B_tok(self):
+        tok = self.tokenizer
+        src_text = " I am a small frog."
+        encoded = tok([src_text], padding=False, truncation=False)["input_ids"]
+        decoded = tok.batch_decode(encoded, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+        assert src_text == decoded  # I wish it did!
+
+    def test_add_prefix_space(self):
+        assert self.tokenizer.add_prefix_space
+
+    def test_3B_tokenization_same_as_parlai(self):
+        # TODO(SS): this can run on CPU
+        tok = self.tokenizer
         self.assertListEqual(tok(["sam"]).input_ids[0], [268, 343, 2])

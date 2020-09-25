@@ -132,11 +132,28 @@ class Blenderbot3BIntegrationTests(unittest.TestCase):
 
     @cached_property
     def tokenizer(self):
-        return BlenderbotTokenizer.from_pretrained(self.ckpt)
+        NEW_TOK_NAME = 'sshleifer/bb3b-tok'
+        OLD_TOK_NAME = "facebook/blenderbot-3B"
+        return BlenderbotTokenizer.from_pretrained(NEW_TOK_NAME)#DELETEME
+
+    @unittest.skip("This fails.")
+    @slow
+    def test_generation_from_short_text_3B(self):
+
+        src_text = [
+            "sam",
+        ]
+
+        model_inputs = self.tokenizer(src_text, return_tensors="pt").to(torch_device)
+        generated_utterances = self.model.generate(**model_inputs)
+        tgt_text = ["Sam is a great name. It means 'sun' in Gaelic."]
+
+        generated_txt = self.tokenizer.batch_decode(generated_utterances)
+        self.assertListEqual(tgt_text, generated_txt)
 
 
     @slow
-    def test_generation_from_short_input_same_as_parlai_3B(self):
+    def test_generation_from_short_tensor_3B(self):
 
         # src_text = ["sam",]
 
