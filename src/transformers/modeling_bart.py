@@ -226,7 +226,7 @@ class EncoderLayer(nn.Module):
     def __init__(self, config: BartConfig):
         super().__init__()
         self.embed_dim = config.d_model
-        self.variant = config.variant
+        self.layernorm_variant = config.layernorm_variant
         self.self_attn = Attention(self.embed_dim, config.encoder_attention_heads, dropout=config.attention_dropout)
         self.self_attn_layer_norm = LayerNorm(self.embed_dim)
         self.dropout = config.dropout
@@ -249,25 +249,25 @@ class EncoderLayer(nn.Module):
             encoded output of shape `(seq_len, batch, embed_dim)`
         """
         residual = x
-        if self.variant == "prelayernorm":
+        if self.layernorm_variant == "prelayernorm":
             x = self.self_attn_layer_norm(x)
         x, attn_weights = self.self_attn(
             query=x, key=x, key_padding_mask=encoder_padding_mask, output_attentions=output_attentions
         )
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
-        if self.variant != "prelayernorm":
+        if self.layernorm_variant != "prelayernorm":
             x = self.self_attn_layer_norm(x)
 
         residual = x
-        if self.variant == "prelayernorm":
+        if self.layernorm_variant == "prelayernorm":
             x = self.final_layer_norm(x)
         x = self.activation_fn(self.fc1(x))
         x = F.dropout(x, p=self.activation_dropout, training=self.training)
         x = self.fc2(x)
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
-        if self.variant != "prelayernorm":
+        if self.layernorm_variant != "prelayernorm":
             x = self.final_layer_norm(x)
         return x, attn_weights
 
@@ -291,7 +291,7 @@ class BartEncoder(nn.Module):
         self.embed_scale = math.sqrt(embed_dim) if config.scale_embedding else 1.0
         self.padding_idx = embed_tokens.padding_idx
         self.max_source_positions = config.max_position_embeddings
-        self.variant = config.variant
+        self.layernorm_variant = config.layernorm_variant
         self.embed_tokens = embed_tokens
         if config.static_position_embeddings:
             self.embed_positions = SinusoidalPositionalEmbedding(
@@ -382,7 +382,7 @@ class DecoderLayer(nn.Module):
         self.dropout = config.dropout
         self.activation_fn = ACT2FN[config.activation_function]
         self.activation_dropout = config.activation_dropout
-        self.variant = config.variant
+        self.layernorm_variant = config.layernorm_variant
 
         self.self_attn_layer_norm = LayerNorm(self.embed_dim)
         self.encoder_attn = Attention(
@@ -410,7 +410,7 @@ class DecoderLayer(nn.Module):
 
         if layer_state is None:
             layer_state = {}
-        if self.variant == "prelayernorm":
+        if self.layernorm_variant == "prelayernorm":
             x = self.self_attn_layer_norm(x)
         # Self Attention
 
@@ -424,13 +424,13 @@ class DecoderLayer(nn.Module):
         )
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
-        if self.variant != "prelayernorm":
+        if self.layernorm_variant != "prelayernorm":
             x = self.self_attn_layer_norm(x)
 
         # Cross attention
         residual = x
         assert self.encoder_attn.cache_key != self.self_attn.cache_key
-        if self.variant == "prelayernorm":
+        if self.layernorm_variant == "prelayernorm":
             x = self.encoder_attn_layer_norm(x)  # aliases: encoder_attn_layer_norm, norm 2
         x, _ = self.encoder_attn(
             query=x,
@@ -440,19 +440,19 @@ class DecoderLayer(nn.Module):
         )
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
-        if self.variant != "prelayernorm":
+        if self.layernorm_variant != "prelayernorm":
             x = self.encoder_attn_layer_norm(x)
 
         # Fully Connected
         residual = x
-        if self.variant == "prelayernorm":
+        if self.layernorm_variant == "prelayernorm":
             x = self.final_layer_norm(x)
         x = self.activation_fn(self.fc1(x))
         x = F.dropout(x, p=self.activation_dropout, training=self.training)
         x = self.fc2(x)
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
-        if self.variant != "prelayernorm":
+        if self.layernorm_variant != "prelayernorm":
             x = self.final_layer_norm(x)
         return (
             x,
@@ -474,7 +474,7 @@ class BartDecoder(nn.Module):
         super().__init__()
         self.dropout = config.dropout
         self.layerdrop = config.decoder_layerdrop
-        self.variant = config.variant
+        self.layernorm_variant = config.layernorm_variant  # layernorm variant
         self.padding_idx = embed_tokens.padding_idx
         self.max_target_positions = config.max_position_embeddings
         self.embed_scale = math.sqrt(config.d_model) if config.scale_embedding else 1.0
@@ -554,7 +554,7 @@ class BartDecoder(nn.Module):
             positions = positions[:, -1:]
 
         x = self.embed_tokens(input_ids) * self.embed_scale
-        if self.variant == "xlm":
+        if self.layernorm_variant == "xlm":
             x = self.layernorm_embedding(x)
             x += positions
         else:

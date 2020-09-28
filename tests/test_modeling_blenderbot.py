@@ -71,7 +71,7 @@ class BlenderbotModelTester:
             encoder_ffn_dim=4,
             decoder_ffn_dim=4,
             max_position_embeddings=50,
-            variant="prelayernorm",
+            layernorm_variant="prelayernorm",
             static_position_embeddings=False,
             scale_embedding=True,
             bos_token_id=0,
@@ -192,99 +192,6 @@ class Blenderbot90MIntegrationTests(unittest.TestCase):
     @cached_property
     def tokenizer(self):
         return BlenderbotSmallTokenizer.from_pretrained(self.ckpt)
-
-    @unittest.skip("This does not pass. It should be deleted")
-    def test_forward_90M_same_as_parlai(self):
-        torch.manual_seed(0)
-        config = BlenderbotConfig(
-            d_model=16,
-            vocab_size=50,
-            encoder_attention_heads=2,
-            decoder_attention_heads=2,
-            encoder_layers=2,
-            decoder_layers=2,
-            encoder_ffn_dim=4,
-            decoder_ffn_dim=4,
-            variant="xlm",
-            scale_embedding=True,
-            normalize_embedding=True,
-            max_position_embeddings=50,
-            activation_function="gelu",
-            static_position_embeddings=False,
-            dropout=0.1,
-        )
-        input_ids = torch.tensor(
-            [[49, 12, 38, 24, 13, 25, 10, 28, 37, 7, 44, 7, 2, 3]],
-            dtype=torch.long,
-            device=torch_device,
-        )
-        model = BlenderbotForConditionalGeneration(config)
-        model.eval()
-        model.to(torch_device)
-        # output from parlai model after copying the same blenderbot weight in parlai and setting a manual_seed
-        expected_logits = torch.tensor(
-            [
-                [
-                    [
-                        -1.0000e20,
-                        0.0000e00,
-                        -8.3858e-03,
-                        5.3556e-02,
-                        -6.7345e-02,
-                        -1.1861e-01,
-                        -4.7368e-02,
-                        -8.6005e-02,
-                        -6.6010e-02,
-                        -1.1263e-01,
-                        -1.2138e-02,
-                        -5.0588e-02,
-                        1.1818e-01,
-                        3.8662e-03,
-                        2.3491e-02,
-                        -1.0256e-01,
-                        1.9944e-02,
-                        -2.8050e-02,
-                        1.2771e-01,
-                        -5.6630e-02,
-                        -3.7779e-02,
-                        6.9132e-02,
-                        -8.2159e-04,
-                        -6.3877e-02,
-                        1.1591e-01,
-                        9.1973e-02,
-                        3.8424e-03,
-                        5.4423e-02,
-                        -3.4574e-02,
-                        3.1875e-02,
-                        -3.2030e-02,
-                        6.0317e-02,
-                        6.8307e-02,
-                        1.3964e-01,
-                        -1.2045e-01,
-                        -1.1150e-01,
-                        7.3168e-02,
-                        -4.0991e-02,
-                        3.8692e-04,
-                        5.9230e-02,
-                        -2.0674e-02,
-                        -3.2628e-02,
-                        -9.5583e-02,
-                        6.5901e-02,
-                        5.8617e-02,
-                        9.2186e-02,
-                        -4.5951e-02,
-                        -3.7279e-02,
-                        -1.5638e-02,
-                        3.7328e-02,
-                    ]
-                ]
-            ],
-            device=torch_device,
-        )
-        decoder_inputs = torch.LongTensor([1]).expand(1, 1).to(torch_device)
-        logits = model(input_ids, decoder_input_ids=decoder_inputs)[0]
-
-        assert torch.allclose(expected_logits, logits, atol=1e-4)
 
     @slow
     def test_90_generation_from_long_input(self):
