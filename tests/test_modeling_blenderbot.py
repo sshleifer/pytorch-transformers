@@ -89,13 +89,6 @@ class BlenderbotModelTester:
         inputs_dict = {"input_ids": input_ids, "attention_mask": attention_mask}
         return self.config, inputs_dict
 
-    @unittest.skip("This test is flaky")
-    def test_feed_forward_chunking(self):
-        pass
-
-    @unittest.skip("This test is flaky")
-    def test_model_outputs_equivalence(self):
-        pass
 
 
 @require_torch
@@ -134,6 +127,14 @@ class BlenderbotTesterMixin(ModelTesterMixin, unittest.TestCase):
         expected_shape = (config.max_position_embeddings + config.extra_pos_embeddings, config.d_model)
         assert model.model.encoder.embed_positions.weight.shape == expected_shape
         model.model.decoder.embed_positions.weight.shape == expected_shape
+
+    @unittest.skip("This test is flaky")
+    def test_feed_forward_chunking(self):
+        pass
+
+    @unittest.skip("This test is flaky")
+    def test_model_outputs_equivalence(self):
+        pass
 
 
 @unittest.skipUnless(torch_device != "cpu", "3B test too slow on CPU.")
