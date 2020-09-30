@@ -510,7 +510,7 @@ class BartModelIntegrationTests(unittest.TestCase):
         hypotheses_batch = model.generate(
             input_ids=dct["input_ids"],
             attention_mask=dct["attention_mask"],
-            num_beams=2,
+            num_beams=1,
             max_length=62,
             min_length=11,
             length_penalty=1.0,
