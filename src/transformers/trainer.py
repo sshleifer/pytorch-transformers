@@ -667,9 +667,9 @@ class Trainer:
                 raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
             model, self.optimizer = amp.initialize(model, self.optimizer, opt_level=self.args.fp16_opt_level)
 
-        # Multi-gpu training (should be after apex fp16 initialization)
-        if self.args.n_gpu > 1:
-            model = torch.nn.DataParallel(model)
+        # # Multi-gpu training (should be after apex fp16 initialization)
+        # if self.args.n_gpu > 1:
+        #     model = torch.nn.DataParallel(model)
 
         # Distributed training (should be after apex fp16 initialization)
         if self.args.local_rank != -1:
