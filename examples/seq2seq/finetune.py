@@ -34,6 +34,7 @@ from utils import (
     pickle_save,
     save_git_info,
     use_task_specific_params,
+    unfreeze_params,
 )
 
 
@@ -95,6 +96,8 @@ class SummarizationModule(BaseTransformer):
         if self.hparams.freeze_encoder:
             freeze_params(self.model.get_encoder())
             assert_all_frozen(self.model.get_encoder())
+        unfreeze_params(self.model.get_encoder().layers[-1])
+
 
         self.hparams.git_sha = get_git_info()["repo_sha"]
         self.num_workers = hparams.num_workers

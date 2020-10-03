@@ -536,6 +536,10 @@ def freeze_params(model: nn.Module):
     for par in model.parameters():
         par.requires_grad = False
 
+def unfreeze_params(model: nn.Module):
+    """Set requires_grad=False for each of model.parameters()"""
+    for par in model.parameters():
+        par.requires_grad = True
 
 def freeze_embeds(model):
     """Freeze token embeddings and positional embeddings for bart, just token embeddings for t5."""
