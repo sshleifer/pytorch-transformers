@@ -205,7 +205,7 @@ class TestSummarizationDistillerMultiGPU(unittest.TestCase):
             max_epochs=2,
             alpha_mlm=0.2,
             alpha_ce=0.8,
-            do_predict=True,
+            do_predict=False,
             model_name_or_path="sshleifer/tinier_bart",
             teacher=CHEAP_ARGS["model_name_or_path"],
             val_check_interval=0.5,
