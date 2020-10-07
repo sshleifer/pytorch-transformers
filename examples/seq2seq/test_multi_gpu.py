@@ -69,7 +69,7 @@ CHEAP_ARGS = {
     "n_test": -1,
     "freeze_encoder": True,
     "auto_scale_batch_size": False,
-    "metric": "loss",
+    "val_metric": "loss",
 }
 
 
