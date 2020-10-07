@@ -239,8 +239,7 @@ class TestSummarizationDistillerMultiGPU(unittest.TestCase):
         if result.returncode > 0:
             pytest.fail(f"failed with returncode {result.returncode}")
 
-        # XXX: need to complete the test
-        return
+
         contents = os.listdir(output_dir)
         contents = {os.path.basename(p) for p in contents}
         ckpt_files = [p for p in contents if p.endswith("ckpt")]
