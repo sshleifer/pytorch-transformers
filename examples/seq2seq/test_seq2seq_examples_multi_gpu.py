@@ -254,11 +254,11 @@ class TestSummarizationDistillerMultiGPU(unittest.TestCase):
 
         metrics = load_json(metrics_save_path)
         # {'test': [{'test_avg_loss': 10.63731575012207, 'test_avg_rouge1': 0.0, 'test_avg_rouge2': 0.0, 'test_avg_rougeL': 0.0, 'test_avg_gen_time': 0.1822289228439331, 'test_avg_gen_len': 142.0, 'step_count': 1}]}
-        print(metrics)
+        #print(metrics)
         last_step_stats = metrics["val"][-1]
-        self.assertGreaterEqual(last_step_stats["val_avg_gen_time"], 0.01)
-        self.assertGreaterEqual(1.0, last_step_stats["val_avg_gen_time"])
+        assert 0.01 <= last_step_stats["val_avg_gen_time"] <= 1.0
         self.assertIsInstance(last_step_stats[f"val_avg_{val_metric}"], float)
+
+        assert len(metrics["test"]) == 1
         desired_n_evals = int(args_d["max_epochs"] * (1 / args_d["val_check_interval"]) + 1)
-        self.assertEqual(len(metrics["val"]), desired_n_evals)
-        self.assertEqual(len(metrics["test"]), 1)
+        assert len(metrics["val"]) == desired_n_evals
