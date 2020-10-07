@@ -30,13 +30,10 @@ CHEAP_ARGS = {
     "adafactor": True,
     "early_stopping_patience": 2,
     "logger_name": "default",
-    "length_penalty": 0.5,
     "cache_dir": "",
     "task": "summarization",
     "num_workers": 2,
-    "alpha_hid": 0,
     "freeze_embeds": True,
-    "tgt_suffix": "",
     "resume_from_checkpoint": None,
     "sortish_sampler": True,
     "val_check_interval": 1.0,
@@ -44,13 +41,10 @@ CHEAP_ARGS = {
     "fp16": False,  # TODO(SS): set this to CUDA_AVAILABLE if ci installs apex or start using native amp
     "fp16_opt_level": "O1",
     "gpus": 2,
-    "n_tpu_cores": 0,
     "max_grad_norm": 1.0,
     "do_train": True,
     "do_predict": True,
     "accumulate_grad_batches": 1,
-    "server_ip": "",
-    "server_port": "",
     "seed": 42,
     "model_name_or_path": "sshleifer/bart-tiny-random",
     "config_name": "",
@@ -73,7 +67,7 @@ CHEAP_ARGS = {
     "n_train": -1,
     "n_val": -1,
     "n_test": -1,
-    "freeze_encoder": False,
+    "freeze_encoder": True,
     "auto_scale_batch_size": False,
 }
 
@@ -181,34 +175,23 @@ class TestSummarizationDistillerMultiGPU(unittest.TestCase):
     @slow
     @require_multigpu
     def test_multigpu(self):
-
-        updates = dict(
-            no_teacher=True,
-            freeze_encoder=True,
-            gpus=2,
-            sortish_sampler=True,
-        )
-        self._test_distiller_cli_fork(updates, check_contents=False)
-
-    def _test_distiller_cli_fork(self, updates, check_contents=True):
         default_updates = dict(
             label_smoothing=0.0,
             early_stopping_patience=-1,
             train_batch_size=1,
             eval_batch_size=2,
             max_epochs=2,
-            do_predict=True,
+            #do_predict=True,
             model_name_or_path="sshleifer/tinier_bart",
             val_check_interval=0.5,
         )
-        default_updates.update(updates)
         args_d: dict = CHEAP_ARGS.copy()
         tmp_dir = make_test_data_dir()
         output_dir = tempfile.mkdtemp(prefix="output_")
         args_d.update(data_dir=tmp_dir, output_dir=output_dir, **default_updates)
 
         def convert(k, v):
-            if k in ["tgt_suffix", "server_ip", "server_port", "out", "n_tpu_cores"]:
+            if k in ["out"]:
                 return ""
             if v is False or v is None:
                 return ""
