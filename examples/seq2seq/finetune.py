@@ -372,7 +372,7 @@ class TranslationModule(SummarizationModule):
 
 def main(args, model=None) -> SummarizationModule:
     Path(args.output_dir).mkdir(exist_ok=True)
-    if len(os.listdir(args.output_dir)) > 3 and args.do_train:
+    if Path(args.output_dir).joinpath('best_tfmr').exists() and args.do_train:
         raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
     if model is None:
         if "summarization" in args.task:
@@ -422,8 +422,9 @@ def main(args, model=None) -> SummarizationModule:
     checkpoints = list(sorted(glob.glob(os.path.join(args.output_dir, "*.ckpt"), recursive=True)))
     if checkpoints:
         model.hparams.test_checkpoint = checkpoints[-1]
+        model.hparams.do_train = False
         trainer.resume_from_checkpoint = checkpoints[-1]
-    trainer.logger.log_hyperparams(model.hparams)
+    trainer.logger.log_hyperparams(model.hparams)  # Why is this line here?
 
     # test() without a model tests using the best checkpoint automatically
     trainer.test()
