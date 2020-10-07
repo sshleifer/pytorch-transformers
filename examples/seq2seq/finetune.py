@@ -418,13 +418,13 @@ def main(args, model=None) -> SummarizationModule:
     if not args.do_predict:
         return model
 
-    model.hparams.test_checkpoint = ""
-    checkpoints = list(sorted(glob.glob(os.path.join(args.output_dir, "*.ckpt"), recursive=True)))
-    if checkpoints:
-        model.hparams.test_checkpoint = checkpoints[-1]
-        model.hparams.do_train = False
-        trainer.resume_from_checkpoint = checkpoints[-1]
-    trainer.logger.log_hyperparams(model.hparams)  # Why is this line here?
+    # model.hparams.test_checkpoint = ""
+    # checkpoints = list(sorted(glob.glob(os.path.join(args.output_dir, "*.ckpt"), recursive=True)))
+    # if checkpoints:
+    #     model.hparams.test_checkpoint = checkpoints[-1]
+    #     model.hparams.do_train = False
+    #     trainer.resume_from_checkpoint = checkpoints[-1]
+    # trainer.logger.log_hyperparams(model.hparams)  # Why is this line here?
 
     # test() without a model tests using the best checkpoint automatically
     trainer.test()
