@@ -203,7 +203,7 @@ class TestSummarizationDistillerMultiGPU(unittest.TestCase):
             train_batch_size=1,
             eval_batch_size=2,
             max_epochs=2,
-            alpha_mlm=0.2,
+            alpha_mlm=0.2,  # can remove these 
             alpha_ce=0.8,
             do_predict=True,
             model_name_or_path="sshleifer/tinier_bart",
@@ -226,7 +226,7 @@ class TestSummarizationDistillerMultiGPU(unittest.TestCase):
             return f"--{k}={v}"
 
         cli_args = [x for x in (convert(k, v) for k, v in args_d.items()) if len(x)]
-        cmd = [sys.executable, "./examples/seq2seq/distillation.py"] + cli_args
+        cmd = [sys.executable, "./examples/seq2seq/finetune.py"] + cli_args
 
         print("Running: ", " ".join(cmd))
 
