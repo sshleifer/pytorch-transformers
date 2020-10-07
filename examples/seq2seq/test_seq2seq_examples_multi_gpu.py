@@ -10,7 +10,8 @@ from pathlib import Path
 import pytest
 import torch
 
-from transformers.testing_utils import require_multigpu
+from transformers.testing_utils import require_multigpu, slow
+import timeout_decorator
 
 from .utils import load_json
 
@@ -182,6 +183,8 @@ class TestSummarizationDistillerMultiGPU(unittest.TestCase):
         logging.disable(logging.CRITICAL)  # remove noisy download output from tracebacks
         return cls
 
+    @timeout_decorator.timeout(40)
+    @slow
     @require_multigpu
     def test_multigpu(self):
 
