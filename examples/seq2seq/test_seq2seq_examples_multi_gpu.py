@@ -22,8 +22,6 @@ logger = logging.getLogger()
 CUDA_AVAILABLE = torch.cuda.is_available()
 CHEAP_ARGS = {
     "max_tokens_per_batch": None,
-    "supervise_forward": True,
-    "normalize_hidden": True,
     "label_smoothing": 0.2,
     "eval_max_gen_length": None,
     "eval_beams": 1,
@@ -38,17 +36,14 @@ CHEAP_ARGS = {
     "num_workers": 2,
     "alpha_hid": 0,
     "freeze_embeds": True,
-    "enc_only": False,
     "tgt_suffix": "",
     "resume_from_checkpoint": None,
     "sortish_sampler": True,
-    "student_decoder_layers": 1,
     "val_check_interval": 1.0,
     "output_dir": "",
     "fp16": False,  # TODO(SS): set this to CUDA_AVAILABLE if ci installs apex or start using native amp
-    "no_teacher": False,
     "fp16_opt_level": "O1",
-    "gpus": 1 if CUDA_AVAILABLE else 0,
+    "gpus": 2,
     "n_tpu_cores": 0,
     "max_grad_norm": 1.0,
     "do_train": True,
@@ -78,7 +73,6 @@ CHEAP_ARGS = {
     "n_train": -1,
     "n_val": -1,
     "n_test": -1,
-    "student_encoder_layers": 1,
     "freeze_encoder": False,
     "auto_scale_batch_size": False,
 }
@@ -203,11 +197,8 @@ class TestSummarizationDistillerMultiGPU(unittest.TestCase):
             train_batch_size=1,
             eval_batch_size=2,
             max_epochs=2,
-            alpha_mlm=0.2,  # can remove these 
-            alpha_ce=0.8,
             do_predict=True,
             model_name_or_path="sshleifer/tinier_bart",
-            teacher=CHEAP_ARGS["model_name_or_path"],
             val_check_interval=0.5,
         )
         default_updates.update(updates)
