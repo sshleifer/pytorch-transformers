@@ -141,7 +141,7 @@ class SummarizationModule(BaseTransformer):
         if isinstance(self.model, T5ForConditionalGeneration):
             decoder_input_ids = self.model._shift_right(tgt_ids)
         else:
-            decoder_input_ids = shift_tokens_right(tgt_ids, pad_token_id)
+            decoder_input_ids = shift_tokens_right(tgt_ids, pad_token_id, start_token_id=self.decoder_start_token_id)
         if not self.already_saved_batch:  # This would be slightly better if it only happened on rank zero
             batch["decoder_input_ids"] = decoder_input_ids
             self.save_readable_batch(batch)
