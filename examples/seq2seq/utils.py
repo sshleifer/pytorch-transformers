@@ -127,6 +127,10 @@ class AbstractSeq2SeqDataset(Dataset):
         else:
             self.src_lens = self.get_char_lens(self.src_file)
             self.used_char_len = True
+            assert min(self.src_lens) > 0
+        tgt_lens = self.get_char_lens(self.tgt_file)
+        assert min(tgt_lens) > 0
+        del tgt_lens
         self.max_source_length = max_source_length
         self.max_target_length = max_target_length
         assert min(self.src_lens) > 0, f"found empty line in {self.src_file}"
