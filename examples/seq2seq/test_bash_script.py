@@ -151,7 +151,6 @@ class TestAll(TestCasePlus):
             parser = pl.Trainer.add_argparse_args(parser)
             parser = BartSummarizationDistiller.add_model_specific_args(parser, os.getcwd())
             args = parser.parse_args()
-            args.do_predict = False
             # assert args.gpus == gpus THIS BREAKS for multigpu
 
             model = distill_main(args)
