@@ -160,14 +160,16 @@ class BartSummarizationDistiller(SummarizationModule):
             decoder_input_ids = shift_tokens_right(labels, pad_token_id)
 
         # noinspection PyCallingNonCallable
-        lm_logits, dec_hidden, enc_outputs, enc_hidden_state = self(
+        student_outputs = self(
             input_ids,
             attention_mask=src_mask,
             decoder_input_ids=decoder_input_ids,
-            output_hidden_states=True,  # Wasteful if no hidden loss
+            output_hidden_states=self.do_calc_hidden_loss,
             output_attentions=False,
             use_cache=False,
+            return_dict=True
         )
+        lm_logits = student_outputs.logits
 
         # Same cross entropy vs. label smoothing logic as finetune.py
         assert lm_logits.shape[-1] == self.model.config.vocab_size
@@ -184,45 +186,42 @@ class BartSummarizationDistiller(SummarizationModule):
         def zero_tensor():
             return torch.tensor(0.0).type_as(student_lm_loss)
 
-        teacher_enc_outputs = enc_outputs
+        teacher_enc_outputs = student_outputs.encoder_last_hidden_state
         hid_loss_enc, hid_loss_dec = zero_tensor(), zero_tensor()
         if self.different_encoder:  # compute encoder hidden state loss
-            with torch.no_grad():  # TODO: helpful if teacher frozen?
-                teacher_encoder = self.teacher.get_encoder()(
-                    input_ids,
-                    attention_mask=src_mask,
-                    output_hidden_states=not self.different_base_models,
-                    return_dict=True,
-                )
+            #with torch.no_grad():  # TODO: helpful if teacher frozen?
+            teacher_encoder = self.teacher.get_encoder()(
+                input_ids,
+                attention_mask=src_mask,
+                output_hidden_states=self.do_calc_hidden_loss,
+                return_dict=True,
+            )
             if self.different_base_models:
                 teacher_enc_outputs = teacher_encoder.last_hidden_state
-            else:
+            elif self.do_calc_hidden_loss:
                 hid_loss_enc = self.calc_hidden_loss(
                     src_mask,
-                    enc_hidden_state,
+                    student_outputs.encoder_hidden_states,
                     teacher_encoder.hidden_states,
                     self.e_matches,
                     normalize_hidden=self.hparams.normalize_hidden,
                 )
 
-        with torch.no_grad():  # TODO: helpful if teacher frozen?
-            outputs = self.teacher(
-                input_ids,
-                attention_mask=src_mask,
-                encoder_outputs=(teacher_enc_outputs,),
-                decoder_input_ids=decoder_input_ids,
-                lm_labels=labels,
-                output_hidden_states=not self.different_base_models,
-                return_dict=True,
-            )
+        # with torch.no_grad():  # TODO: helpful if teacher frozen?
+        teacher_outputs = self.teacher(
+            input_ids,
+            attention_mask=src_mask,
+            encoder_outputs=(teacher_enc_outputs,),
+            decoder_input_ids=decoder_input_ids,
+            lm_labels=labels,
+            output_hidden_states=self.do_calc_hidden_loss,
+            return_dict=True,
+        )
         dec_mask = decoder_input_ids.ne(pad_token_id)
-        loss_ce = self.calc_ce_loss(dec_mask, lm_logits, outputs.logits)
-        if (
-            not self.different_base_models
-        ) and self.alpha_hid > 0:  # Intermediate supervision of decoder hidden states
-            tdec_hidden = outputs.decoder_hidden_states
+        loss_ce = self.calc_ce_loss(dec_mask, lm_logits, teacher_outputs.logits)
+        if self.do_calc_hidden_loss:  # Intermediate supervision of decoder hidden states
             hid_loss_dec = self.calc_hidden_loss(
-                dec_mask, dec_hidden, tdec_hidden, self.d_matches, normalize_hidden=self.hparams.normalize_hidden
+                dec_mask, student_outputs.decoder_hidden_states, teacher_outputs.decoder_hidden_states, self.d_matches, normalize_hidden=self.hparams.normalize_hidden
             )
 
         blended_loss = (
