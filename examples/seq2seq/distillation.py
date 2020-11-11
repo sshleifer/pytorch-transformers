@@ -68,15 +68,10 @@ class BartSummarizationDistiller(SummarizationModule):
             teacher_encoder_layers = teacher.config.encoder_layers
             teacher_decoder_layers = teacher.config.decoder_layers
 
-        self.different_encoder = student_encoder_layers != teacher_encoder_layers
-
-        if e_layer_ids is None:
-            e_layer_ids = list(range(student_encoder_layers))
-        if d_layer_ids is None:
-            d_layer_ids = list(range(student_decoder_layers))
-
-        self.e_layer_ids, self.d_layer_ids = e_layer_ids, d_layer_ids  # type: List[int], List[int]
-
+        self.different_base_models = not (hparams.student is None or hparams.teacher == hparams.student)
+        self.do_calc_hidden_loss = (not self.different_base_models) and hparams.alpha_hid > 0
+        self.different_encoder = self.different_base_models or (student_encoder_layers != teacher_encoder_layers)
+        # self.different_encoder determines whether we need to run the teacher encoder
         self.teacher = teacher
         freeze_params(self.teacher)
 
@@ -86,11 +81,13 @@ class BartSummarizationDistiller(SummarizationModule):
             except AttributeError:  # T5
                 del self.teacher.encoder
 
-        self.different_base_models = not (hparams.student is None or hparams.teacher == hparams.student)
+        if e_layer_ids is None:
+            e_layer_ids = list(range(student_encoder_layers))
+        if d_layer_ids is None:
+            d_layer_ids = list(range(student_decoder_layers))
 
-        self.do_calc_hidden_loss = (
-            hparams.student is None or hparams.teacher == hparams.student
-        ) and hparams.alpha_hid > 0
+        self.e_layer_ids, self.d_layer_ids = e_layer_ids, d_layer_ids  # type: List[int], List[int]
+
         if self.do_calc_hidden_loss:  # Intermediate supervision: Decide which layers to supervise
             if hparams.supervise_forward:
                 self.e_matches = get_layers_to_supervise(
@@ -167,7 +164,7 @@ class BartSummarizationDistiller(SummarizationModule):
             input_ids,
             attention_mask=src_mask,
             decoder_input_ids=decoder_input_ids,
-            output_hidden_states=True,
+            output_hidden_states=True,  # Wasteful if no hidden loss
             output_attentions=False,
             use_cache=False,
         )
@@ -179,7 +176,7 @@ class BartSummarizationDistiller(SummarizationModule):
             loss_fct = torch.nn.CrossEntropyLoss(ignore_index=pad_token_id)
             student_lm_loss = loss_fct(lm_logits.view(-1, lm_logits.shape[-1]), labels.view(-1))
         else:
-            lprobs = torch.nn.functional.log_softmax(lm_logits, dim=-1)
+            lprobs = F.log_softmax(lm_logits, dim=-1)
             student_lm_loss, _ = label_smoothed_nll_loss(
                 lprobs, labels, self.hparams.label_smoothing, ignore_index=pad_token_id
             )
@@ -190,7 +187,7 @@ class BartSummarizationDistiller(SummarizationModule):
         teacher_enc_outputs = enc_outputs
         hid_loss_enc, hid_loss_dec = zero_tensor(), zero_tensor()
         if self.different_encoder:  # compute encoder hidden state loss
-            with torch.no_grad():
+            with torch.no_grad():  # TODO: helpful if teacher frozen?
                 teacher_encoder = self.teacher.get_encoder()(
                     input_ids,
                     attention_mask=src_mask,
@@ -200,16 +197,15 @@ class BartSummarizationDistiller(SummarizationModule):
             if self.different_base_models:
                 teacher_enc_outputs = teacher_encoder.last_hidden_state
             else:
-                teacher_enc_hid = teacher_encoder.hidden_states
                 hid_loss_enc = self.calc_hidden_loss(
                     src_mask,
                     enc_hidden_state,
-                    teacher_enc_hid,
+                    teacher_encoder.hidden_states,
                     self.e_matches,
                     normalize_hidden=self.hparams.normalize_hidden,
                 )
 
-        with torch.no_grad():
+        with torch.no_grad():  # TODO: helpful if teacher frozen?
             outputs = self.teacher(
                 input_ids,
                 attention_mask=src_mask,
