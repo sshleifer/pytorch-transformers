@@ -111,22 +111,8 @@ class BartSummarizationDistiller(SummarizationModule):
         gc.collect()
         torch.cuda.empty_cache()
 
-    def calc_mse_loss(self, teacher_outputs: torch.Tensor, student_outputs: torch.Tensor, mask) -> torch.FloatTensor:
-        """Supervise MSE(teacher.encoder_outputs, student.encoder_outputs)."""
-        # raise NotImplementedError()
-        if mask is not None:
-            # mask has False at padding_idx
-            sel_mask = mask[:, :, None].expand_as(student_outputs).bool()
-            s_logits_slct = torch.masked_select(student_outputs, sel_mask)
-            t_logits_slct = torch.masked_select(teacher_outputs, sel_mask)
-        else:
-            t_logits_slct = teacher_outputs
-            s_logits_slct = student_outputs
-        return F.mse_loss(s_logits_slct, t_logits_slct)
-
     def calc_ce_loss(self, mask, s_logits, t_logits):
         """Copy pasted from distillbert (transformers/examples/distillation/)"""
-
         # mask has False at padding_idx
         sel_mask = mask[:, :, None].expand_as(s_logits)
         vocab_size = s_logits.size(-1)
@@ -242,6 +228,8 @@ class BartSummarizationDistiller(SummarizationModule):
         valid_count = mask.sum() * hidden_states[0].size(-1)
         student_states = torch.stack([hidden_states[i] for i in range(len(matches))])
         teacher_states = torch.stack([hidden_states_T[j] for j in matches])
+        if student_states.shape != teacher_states.shape:
+            import ipdb; ipdb.set_trace()
         if normalize_hidden:
             student_states = F.layer_norm(student_states, student_states.shape[1:])
             teacher_states = F.layer_norm(teacher_states, teacher_states.shape[1:])
