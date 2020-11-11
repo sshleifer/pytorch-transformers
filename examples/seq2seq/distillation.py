@@ -40,11 +40,10 @@ class BartSummarizationDistiller(SummarizationModule):
         hparams.model_name_or_path = str(save_dir)  # Tell lightning we are training the student
         teacher = AutoModelForSeq2SeqLM.from_pretrained(hparams.teacher).eval()
         use_task_specific_params(teacher, hparams.task)  # We copy good generation parameters to student by default
-
-        e_layer_ids, d_layer_ids = None, None
         if hparams.student is not None:
             student = AutoModelForSeq2SeqLM.from_pretrained(hparams.student)
             use_task_specific_params(student, hparams.task)
+            e_layer_ids, d_layer_ids = None, None
         else:
             student, e_layer_ids, d_layer_ids = create_student_by_copying_alternating_layers(
                 teacher, e=hparams.student_encoder_layers, d=hparams.student_decoder_layers, save_path=save_dir
@@ -54,29 +53,26 @@ class BartSummarizationDistiller(SummarizationModule):
             student.config.length_penalty = hparams.length_penalty
         hparams.tokenizer_name = hparams.teacher  # Use teacher's tokenizer
         super().__init__(hparams, model=student, config=student.config)
-        student_model_type = student.config.model_type
-        teacher_model_type = teacher.config.model_type
+        assert (
+            student.config.model_type == teacher.config.model_type
+        ), f"teacher, student model types should be the same, got {student.config.model_type} != {teacher.config.model_type}"
 
-        student_encoder_layers, student_decoder_layers = None, None
-
-        if student_model_type == "t5":
+        if student.config.model_type == "t5":
             student_encoder_layers = len(student.get_encoder().block)
             student_decoder_layers = len(student.get_decoder().block)
-        else:
-            student_encoder_layers = student.config.encoder_layers
-            student_decoder_layers = student.config.decoder_layers
-
-        if teacher_model_type == "t5":
             teacher_encoder_layers = len(teacher.get_encoder().block)
             teacher_decoder_layers = len(teacher.get_decoder().block)
         else:
+            student_encoder_layers = student.config.encoder_layers
+            student_decoder_layers = student.config.decoder_layers
             teacher_encoder_layers = teacher.config.encoder_layers
             teacher_decoder_layers = teacher.config.decoder_layers
 
         self.different_encoder = student_encoder_layers != teacher_encoder_layers
 
-        if e_layer_ids is None or d_layer_ids is None:
+        if e_layer_ids is None:
             e_layer_ids = list(range(student_encoder_layers))
+        if d_layer_ids is None:
             d_layer_ids = list(range(student_decoder_layers))
 
         self.e_layer_ids, self.d_layer_ids = e_layer_ids, d_layer_ids  # type: List[int], List[int]
@@ -90,13 +86,12 @@ class BartSummarizationDistiller(SummarizationModule):
             except AttributeError:  # T5
                 del self.teacher.encoder
 
-        self.e_matches = None
-        self.d_matches = None
-        self.different_base_models = True
+        self.different_base_models = not (hparams.student is None or hparams.teacher == hparams.student)
 
-        if hparams.student is None or hparams.teacher == hparams.student:
-            self.different_base_models = False
-            # Intermediate supervision: Decide which layers to supervise
+        self.do_calc_hidden_loss = (
+            hparams.student is None or hparams.teacher == hparams.student
+        ) and hparams.alpha_hid > 0
+        if self.do_calc_hidden_loss:  # Intermediate supervision: Decide which layers to supervise
             if hparams.supervise_forward:
                 self.e_matches = get_layers_to_supervise(
                     n_student=len(self.e_layer_ids), n_teacher=teacher_encoder_layers
@@ -107,6 +102,9 @@ class BartSummarizationDistiller(SummarizationModule):
             else:  # student layer should emulate hidden states of the teacher layer it was copied from
                 self.e_matches = self.e_layer_ids
                 self.d_matches = self.d_layer_ids
+        else:
+            self.e_matches = None
+            self.d_matches = None
 
         self.ce_loss_fct = nn.KLDivLoss(reduction="batchmean")
         self.temperature = 2.0
@@ -155,11 +153,10 @@ class BartSummarizationDistiller(SummarizationModule):
         add_distill_args(parser)
         return parser
 
-    def _step(self, batch):
-        # assert is_frozen(self.teacher) copied_decoder_layers
+    def _step(self, batch: dict) -> tuple:
+        """Compute the loss for a batch"""
         pad_token_id = self.tokenizer.pad_token_id
         input_ids, src_mask, labels = batch["input_ids"], batch["attention_mask"], batch["labels"]
-
         if isinstance(self.model, T5ForConditionalGeneration):
             decoder_input_ids = self.model._shift_right(labels)
         else:
@@ -212,11 +209,10 @@ class BartSummarizationDistiller(SummarizationModule):
                     normalize_hidden=self.hparams.normalize_hidden,
                 )
 
-        teacher_mask = input_ids.ne(pad_token_id)
         with torch.no_grad():
             outputs = self.teacher(
                 input_ids,
-                attention_mask=teacher_mask,
+                attention_mask=src_mask,
                 encoder_outputs=(teacher_enc_outputs,),
                 decoder_input_ids=decoder_input_ids,
                 lm_labels=labels,
